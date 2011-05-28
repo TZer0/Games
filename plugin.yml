@@ -1,0 +1,11 @@
+name: Games
+main: tzer0.Games.Games
+version: 0.1
+author: TZer0
+commands:
+    games:
+        description: Tweak the settings of your boards!
+        usage: /games
+    g:
+        description: Tweak the settings of your boards!
+        usage: /g
