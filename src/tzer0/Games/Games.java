@@ -21,14 +21,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.config.Configuration;
 import org.bukkit.util.config.ConfigurationNode;
 
-import tzer0.Games.Board.CellType;
+import tzer0.Games.GOL.CellType;
 
 import com.nijiko.permissions.PermissionHandler;
 import com.nijikokun.bukkit.Permissions.Permissions;
 
-// TODO: Auto-generated Javadoc
 /**
- * Plugin for bukkit allowing players to purchase mcMMO-experience points using iConomy/BOSEconomy-money.
+ * Plugin for bukkit adding different games.
  * 
  * @author TZer0
  */
@@ -40,6 +39,7 @@ public class Games extends JavaPlugin {
     public PermissionHandler permissions;
     @SuppressWarnings("unused")
     private final String name = "Games";
+    LinkedList<World> iterationSet;
     LinkedHashSet<Integer> invalid;
     HashMap<World, LinkedList<Board>> boards;
     HashMap<Player, PlayerStorage> selected;
@@ -104,16 +104,25 @@ public class Games extends JavaPlugin {
     }
 
     public void reload() {
-        selected = new HashMap<Player, PlayerStorage>();
+        if (selected == null) {
+            selected = new HashMap<Player, PlayerStorage>();
+        }
         boards = new HashMap<World, LinkedList<Board>>();
         setupPermissions();
+        iterationSet = new LinkedList<World>();
         for (World world : getServer().getWorlds()) {
+            iterationSet.add(world);
             LinkedList<Board> tmp = new LinkedList<Board>();
             boards.put(world, tmp);
             Map<String, ConfigurationNode> nodes = conf.getNodes(String.format("boards.%s", world.getName()));
             if (nodes != null) {
                 for (String node : nodes.keySet()) {
-                    tmp.add(new Board(node, world, null, null, true, this, conf));
+                    String type = nodes.get(node).getString("type", "gol");
+                    if (type.equalsIgnoreCase("gol")) {
+                        tmp.add(new GOL(node, world, null, null, true, this, conf));
+                    } else if (type.equalsIgnoreCase("tetris")) {
+                        tmp.add(new Tetris(node, world, null, null, true, this, conf));
+                    }
                 }
             }
         }
@@ -160,16 +169,27 @@ public class Games extends JavaPlugin {
                         posInfo(store.pos2, "Node 2", pl);
                         return true;
                     }
-                    if (l == 2) {
-                        if (findBoard(args[1]) == null) {
-                            store.board = new Board(args[1], store.pos1.getWorld(), store.pos1, store.pos2, false, this, conf);
-                            boards.get(store.pos1.getWorld()).add(store.board);
-                            pl.sendMessage(ChatColor.GREEN+"New board created and selected.");
+                    if (l == 3) {
+                        if (findBoard(args[2]) == null) {
+                            store.board = null;
+                            if (args[1].equalsIgnoreCase("gol")) {
+                                store.board = new GOL(args[2], store.pos1.getWorld(), store.pos1, store.pos2, false, this, conf);
+                            } else if (args[1].equalsIgnoreCase("tetris")) {
+                                store.board = new Tetris(args[2], store.pos1.getWorld(), store.pos1, store.pos2, false, this, conf);
+                            }
+                            if (store.board != null) {
+                                boards.get(store.pos1.getWorld()).add(store.board);
+                                pl.sendMessage(ChatColor.GREEN+"New board created and selected.");
+                                store.type = null;
+                            } else {
+                                pl.sendMessage(ChatColor.RED + "Invalid board-type!");
+                            }
+                            
                         } else {
                             pl.sendMessage(ChatColor.RED+"Board with that name already exists!");
                         }
                     } else {
-                        pl.sendMessage("Please provide area-name.");
+                        pl.sendMessage("Please provide board-type and area-name.");
                     }
 
                 } else if (args[0].equalsIgnoreCase("deleteboard") || args[0].equalsIgnoreCase("db")) {
@@ -186,69 +206,177 @@ public class Games extends JavaPlugin {
                     } else {
                         pl.sendMessage(ChatColor.RED + "Please provide board-name");
                     }
-                } else if (args[0].equalsIgnoreCase("addtype") || args[0].equalsIgnoreCase("at")) {
-                    if (store.board != null) {
-                        if (l == 2) {
-                            store.type = store.board.addCell(toInt(args[1]), pl);
-                        } else {
-                            pl.sendMessage(ChatColor.RED + "Please provide material type.");
-                        }
-                    } else {
-                        pl.sendMessage(ChatColor.RED + "No board selected, please select one.");
-                    }
-                } else if (args[0].equalsIgnoreCase("select") ||  args[0].equalsIgnoreCase("s")) {
+                } else if (args[0].equalsIgnoreCase("selectboard") ||  args[0].equalsIgnoreCase("sb")) {
                     if (l >= 2) {
-                        store.board = findBoard(args[1]);
-                        if (store.board == null) {
+                        Board tmp = findBoard(args[1]);
+                        if (tmp == null) {
                             pl.sendMessage(ChatColor.RED + "Not found.");
                         } else {
                             pl.sendMessage(ChatColor.GREEN + "Selected.");
+                            store.board = tmp;
+                            store.board.info(pl);
+                            store.type = null;
                         }
                     }
+                } else if (args[0].equalsIgnoreCase("listboards") ||  args[0].equalsIgnoreCase("lb")) {
+                    int page = 0;
+                    if (l == 2) {
+                        page = toInt(args[1]);
+                    }
+                    showBoards(pl, page);
                 } else if (args[0].equalsIgnoreCase("reload") || args[0].equalsIgnoreCase("r")) {
                     reload();
-                } else if (args[0].equalsIgnoreCase("info") || args[0].equalsIgnoreCase("i")) {
-                    if (checkBoard(store, pl)) {
+                } else if (args[0].equalsIgnoreCase("info") || args[0].equalsIgnoreCase("bi")) {
+                    if (checkBoard(store.board, pl)) {
                         store.board.info(pl);
                     } else {
                     }
-                } else if (args[0].equalsIgnoreCase("iterateboard") || args[0].equalsIgnoreCase("ib")) {
-                    if (checkBoard(store, pl)) {
-                        if (l == 2) {
-                            store.board.GOL(null, toInt(args[1]));
-                        } else {
-                            store.board.GOL(null, 1);
-                        }
-                    }
                 } else if (args[0].equalsIgnoreCase("default") || args[0].equalsIgnoreCase("d")) {
-                    if (checkBoard(store, pl)) {
-                        if (l == 2) {
-                            store.board.changeDefault(toInt(args[1  ]), pl);
+                    if (checkBoard(store.board, pl)) {
+                        if (checkGOL(store.board, pl)) {
+                            if (l == 2) {
+                                ((GOL)store.board).changeDefault(toInt(args[1  ]), pl);
+                            } else {
+                                store.board.info(pl);
+                            }
                         } else {
-                            store.board.info(pl);
+                            pl.sendMessage(ChatColor.RED + "This board is not a game of life board.");
                         }
                     }
-                } else if (args[0].equalsIgnoreCase("clear") || args[0].equalsIgnoreCase("c")) {
-                    if (checkBoard(store, pl)) {
-                        store.board.clear(null);
+                } else if (args[0].equalsIgnoreCase("selecttype") || args[0].equalsIgnoreCase("st")) {
+                    if (checkBoard(store.board, pl)) {
+                        if (checkGOL(store.board, pl)) {
+                            if (l == 2) {
+                                CellType tmp = ((GOL)store.board).findCell(toInt(args[1]));
+                                if (tmp == null) {
+                                    pl.sendMessage(ChatColor.RED + "Not found.");
+                                } else {
+                                    store.type = tmp;
+                                    pl.sendMessage(ChatColor.GREEN + "Selected.");
+                                    tmp.info(pl);
+                                }
+                            } else {
+                                pl.sendMessage(ChatColor.RED + "Please provide material type.");
+                            }
+                        }
+                    }
+                } else if (args[0].equalsIgnoreCase("addtype") || args[0].equalsIgnoreCase("at")) {
+                    if (checkBoard(store.board, pl)) {
+                        if (checkGOL(store.board, pl)) {
+                            if (l == 2) {
+                                store.type = ((GOL)store.board).addCell(toInt(args[1]), pl);
+                            } else {
+                                pl.sendMessage(ChatColor.RED + "Please provide material type.");
+                            }
+                        }
                     }
                 } else if (args[0].equalsIgnoreCase("deletetype") || args[0].equalsIgnoreCase("dt")) {
-                    if (checkBoard(store, pl)) {
-                        if (l == 2) {
-                            if (store.type == store.board.findCell(toInt(args[1]))) {
-                                store.type = null;
+                    if (checkBoard(store.board, pl)) {
+                        if (checkGOL(store.board, pl)) {
+                            if (l == 2) {
+                                if (store.type == ((GOL)store.board).findCell(toInt(args[1]))) {
+                                    store.type = null;
+                                }
+                                ((GOL)store.board).removeCell(toInt(args[1]), pl);
                             }
-                            store.board.removeCell(toInt(args[1]), pl);
                         }
                     }
-                } else {
-                    pl.sendMessage("No such command.");
+                } else if (args[0].equalsIgnoreCase("savestate") || args[0].equalsIgnoreCase("ss")) {
+
+                } else if (store.board instanceof GOL) {
+                    if (!handleGOLParam((GOL)store.board, store.type, pl, args, false)) {
+                        pl.sendMessage("No such command.");
+                    }
                 }
             }
         }
         return true;
     }
 
+    public boolean handleGOLParam(GOL board, CellType type, Player pl, String []args, boolean sign) {
+        int l = args.length;
+        if (args[0].equalsIgnoreCase("iterateboard") || args[0].equalsIgnoreCase("ib")) {
+            if (checkBoard(board, pl)) {
+                if (l == 2) {
+                    board.iterate(null, toInt(args[1]));
+                } else {
+                    board.iterate(null, 1);
+                }
+            }
+            return true;
+        } else if (args[0].equalsIgnoreCase("clear") || args[0].equalsIgnoreCase("c")) {
+            if (checkBoard(board, pl)) {
+                board.clear(null);
+            }
+            return true;
+        }  else if (args[0].equalsIgnoreCase("circuitboard") || args[0].equalsIgnoreCase("cb")) {
+            board.CircuitBoard(pl.getLocation().getBlock());
+            return true;
+        } else if (args[0].equalsIgnoreCase("loadstate") || args[0].equalsIgnoreCase("ls")) {
+            return true;
+        } else if (args[0].equalsIgnoreCase("modtype") || args[0].equalsIgnoreCase("mt")) {
+            if (checkType(type, pl)) {
+                if (l >= 2) {
+                    if (l >= 3) {
+                        int val = toInt(args[2]);
+                        if (val < 0) {
+                            pl.sendMessage(ChatColor.RED + "Invalid value.");
+                            return true;
+                        }
+                        if (args[1].equalsIgnoreCase("survmin") || args[1].equalsIgnoreCase("smin")) {
+                            type.survMin = val;
+                        } else if (args[1].equalsIgnoreCase("survmax") || args[1].equalsIgnoreCase("smax")) {
+                            type.survMax = val;
+                        } else if (args[1].equalsIgnoreCase("creamin") || args[1].equalsIgnoreCase("cmin")) {
+                            type.creaMin = val;
+                        } else if (args[1].equalsIgnoreCase("creamax") || args[1].equalsIgnoreCase("cmax")) {
+                            type.creaMax = val;
+                        }
+                        type.info(pl);
+                        if (!sign) {
+                            type.save();
+                        }
+                    } else {
+                        pl.sendMessage(ChatColor.RED + "Please provide value.");
+                    }
+                } else {
+                    pl.sendMessage(ChatColor.RED + "Please provide field and value.");
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public void showBoards(Player pl, int page) {
+        if (page < 0) {
+            page = 0;
+        }
+        int i = 0;
+        int numbrd = numberOfBoards();
+        pl.sendMessage(ChatColor.GREEN + String.format("Boards %d to %d", Math.min(page*10, numbrd), Math.min((page+1)*10, numbrd)));
+        for (World wrd : iterationSet) {
+            for (Board brd : boards.get(wrd)) {
+                if (i > (page+1)*10) {
+                    break;
+                } else if (i >= page*10) {
+                    brd.shortInfo(pl);
+                }
+                i++;
+            }
+        }
+    }
+    
+    public int numberOfBoards() {
+        int i = 0;
+        for (World wrd : iterationSet) {
+            if (boards.get(wrd) != null) {
+                i+= boards.get(wrd).size();
+            }
+        }
+        return i;
+    }
+    
     public Board findBoard(String bname) {
         for (World w : boards.keySet()) {
             for (Board brd : boards.get(w)) {
@@ -260,17 +388,28 @@ public class Games extends JavaPlugin {
         return null;
     }
 
-    public boolean checkBoard(PlayerStorage store, Player pl) {
-        if (store.board == null) {
+
+    public boolean checkGOL(Board board, Player pl) {
+        if (!(board instanceof GOL)) {
+            pl.sendMessage(ChatColor.RED + "This is not a game of life-board!");
+            return false;
+        }
+        return true;
+    }
+    public boolean checkBoard(Board board, Player pl) {
+        if (board == null) {
             pl.sendMessage(ChatColor.RED + "No board selected, please select one.");
             return false;
         }
         return true;
     }
-    public boolean checkNode(PlayerStorage store, Player pl) {
+    public boolean checkType(CellType type, Player pl) {
+        if (type == null) {
+            pl.sendMessage(ChatColor.RED + "No type selected, please select one.");
+        }
         return true;
     }
-    public boolean checkType(PlayerStorage store, Player pl) {
+    public boolean checkNode(PlayerStorage store, Player pl) {
         return true;
     }
     public void posInfo(Location pos, String name, Player pl) {
@@ -333,6 +472,7 @@ public class Games extends JavaPlugin {
         Location pos1, pos2;
         Board board;
         CellType type;
+        int mode;
         public PlayerStorage() {
             pos1 = pos2 = null;
             board = null;

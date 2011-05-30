@@ -5,14 +5,12 @@ import java.util.LinkedList;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.block.Sign;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Event;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerListener;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.util.config.Configuration;
+
 
 import com.nijiko.permissions.PermissionHandler;
 
@@ -51,24 +49,30 @@ public class GamesPlayerListener extends PlayerListener  {
                 if (brd == null) {
                     pl.sendMessage(ChatColor.RED + "Could not find board.");
                 } else {
-                    brd.GOL(pl, plugin.toInt(tmp.getLine(2)));
+                    if (plugin.checkGOL(brd, pl)) {
+                        ((GOL)brd).iterate(pl, plugin.toInt(tmp.getLine(2)));
+                    }
                 }
             } else if (tmp.getLine(0).equalsIgnoreCase(ChatColor.DARK_RED + "[CLEAR]")) {
                 if (brd == null) {
                     pl.sendMessage(ChatColor.RED + "Could not find board.");
                 } else {
-                    brd.clear(pl);
+                    if (plugin.checkGOL(brd, pl)) {
+                        ((GOL)brd).clear(pl);
+                    }
                 }
-                
+
             }
         }
         LinkedList<Board> list = plugin.boards.get(pl.getWorld());
         if (list != null) {
             for (Board tmp : list) {
-                    if (tmp.isInBoard(event.getClickedBlock())) {
-                        tmp.modField(event.getClickedBlock());
+                if (tmp instanceof Interactable) {
+                    if (((Interactable)tmp).isInBoard(event.getClickedBlock())) {
+                        ((Interactable)tmp).interact(event.getClickedBlock(), pl);
                     }
                 }
+            }
         }
         /*if (plugin.temp.isInBoard(event.getClickedBlock())) {
             event.setCancelled(true);
