@@ -16,19 +16,18 @@ import org.bukkit.util.config.ConfigurationNode;
 
 public class GOL  extends Board implements Interactable {
     int def;
-    int [][]field;
     LinkedList<CellType> races;
-    
+
     public GOL(String name, World world, Location pos1, Location pos2,
             boolean imported, Games plugin, Configuration conf) {
         super(name, world, pos1, pos2, imported, plugin, conf);
         this.type = "gol";
-        y = 0;
+        y = 1;
         races = new LinkedList<CellType>();
         if (imported) {
             Map<String, ConfigurationNode> types = conf.getNodes(pre+"types");
             this.def = conf.getInt(pre+"def", 20);
-            
+
             if (types != null) {
                 for (String tmp : types.keySet()) {
                     if (plugin.isValidMaterial(plugin.toInt(tmp))) {
@@ -42,22 +41,22 @@ public class GOL  extends Board implements Interactable {
         } else {
             this.def = 20;
         }
-        field = new int[x][z];
+        field = new int[y][x][z];
         for (int i = 0; i < x; i++) {
             for (int j = 0; j < z; j++) {
                 if (imported) {
-                    field[i][j] = startblock.getRelative(i, 0, j).getTypeId();
+                    field[0][i][j] = startblock.getRelative(i, 0, j).getTypeId();
                     boolean found = false;
                     for (CellType type : races) {
-                        if (type.material == field[i][j]) {
+                        if (type.material == field[0][i][j]) {
                             found = true;
                         }
                     }
                     if (!found) {
-                        field[i][j] = def;
+                        field[0][i][j] = def;
                     }
                 } else {
-                    field[i][j] = def;                    
+                    field[0][i][j] = def;                    
                 }
             }
         }
@@ -73,17 +72,10 @@ public class GOL  extends Board implements Interactable {
     public void clear(Player pl) {
         for (int i = 0; i < x; i++) {
             for (int j = 0; j < z; j++) {
-                field[i][j] = def;
+                field[0][i][j] = def;
             }
         }
         update();
-    }
-    public void update() {
-        for (int i = 0; i < x; i++) {
-            for (int j = 0; j < z; j++) {
-                startblock.getRelative(i, 0, j).setTypeId(field[i][j]);
-            }
-        }
     }
     public void iterate(Player pl, int iter) {
         if (iter <= 0) {
@@ -102,19 +94,19 @@ public class GOL  extends Board implements Interactable {
             }
             for (int i = 0; i < x; i++) {
                 for (int j = 0; j < z; j++) {
-                    if (field[i][j] != def) {
-                        if (!calcmap.get(field[i][j])[i][j]) {
-                            field[i][j] = def;
+                    if (field[0][i][j] != def) {
+                        if (!calcmap.get(field[0][i][j])[i][j]) {
+                            field[0][i][j] = def;
                         }
 
                     }
-                    if (field[i][j] == def) {
+                    if (field[0][i][j] == def) {
                         for (int t : calcmap.keySet()) {
                             if (calcmap.get(t)[i][j]) {
-                                if (field[i][j] == def) {
-                                    field[i][j] = t;
+                                if (field[0][i][j] == def) {
+                                    field[0][i][j] = t;
                                 } else {
-                                    field[i][j] = def;
+                                    field[0][i][j] = def;
                                     break;
                                 }
                             }
@@ -140,7 +132,7 @@ public class GOL  extends Board implements Interactable {
         for (int i = 0; i < x; i++) {
             for (int j = 0; j < z; j++) {
                 cells = getGOLCells(i, j, type.material);
-                if (field[i][j] == type.material) {
+                if (field[0][i][j] == type.material) {
                     if (cells >= type.survMax || cells <= type.survMin) {
                         tmp[i][j] = false;
                     } else {
@@ -164,7 +156,7 @@ public class GOL  extends Board implements Interactable {
                 if (xc + i < 0 || xc + i >= x || zc + j < 0 || zc + j >= z || (i == 0 && j == 0)) {
                     continue;
                 }
-                if (field[i+xc][j+zc] == mat) {
+                if (field[0][i+xc][j+zc] == mat) {
                     cells += 1;
                 }
             }
@@ -179,22 +171,22 @@ public class GOL  extends Board implements Interactable {
     }
 
     public void nextType(int cx, int cz) {
-        if (field[cx][cz] == def) {
+        if (field[0][cx][cz] == def) {
             if (races.size() != 0) {
-                field[cx][cz] = races.get(0).material;
+                field[0][cx][cz] = races.get(0).material;
             }
         } else {
             for (int i = 0; i < races.size(); i++ ) {
-                if (races.get(i).material == field[cx][cz]) {
+                if (races.get(i).material == field[0][cx][cz]) {
                     if (i != races.size()-1) {
-                        field[cx][cz] = races.get(i + 1).material;
+                        field[0][cx][cz] = races.get(i + 1).material;
                     } else {
-                        field[cx][cz] = def;
+                        field[0][cx][cz] = def;
                     }
                     return;
                 }
             }
-            field[cx][cz] = def;
+            field[0][cx][cz] = def;
         }
     }
     public void info(Player pl) {
@@ -218,8 +210,8 @@ public class GOL  extends Board implements Interactable {
         }
         for (int i = 0; i < x; i++) {
             for (int j = 0; j < z; j++) {
-                if (field[i][j] == def) {
-                    field[i][j] = newdef;
+                if (field[0][i][j] == def) {
+                    field[0][i][j] = newdef;
                 }
             }
         }
@@ -282,11 +274,11 @@ public class GOL  extends Board implements Interactable {
         }
         return false;
     }
-    
+
     public void interact(Block pos, Player pl) {
         modField(pos);
     }
-    
+
     class CellType {
         int creaMin, creaMax, survMin, survMax;
         int material;
@@ -323,14 +315,14 @@ public class GOL  extends Board implements Interactable {
             conf.save();
             for (int i = 0; i < x; i++) {
                 for (int j = 0; j < z; j++) {
-                    if (field[i][j] == material) {
-                        field[i][j] = def; 
+                    if (field[0][i][j] == material) {
+                        field[0][i][j] = def; 
                     }
                 }
             }
             update();
         }
-        
+
         public void info(Player pl) {
             pl.sendMessage(ChatColor.GREEN + 
                     String.format("Material: %d, cmin: %d, cmax: %d, smin: %d, smax: %d",

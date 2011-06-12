@@ -20,8 +20,10 @@ public class Board {
     String pre;
     String name;
     String type;
+    byte data[][][];
+    int field[][][];
+    
     public Board(String name, World world, Location pos1, Location pos2, boolean imported, Games plugin, Configuration conf) {
-        
         this.conf = conf;
         this.plugin = plugin;
         pre = String.format("boards.%s.%s.", world.getName(), name);
@@ -34,6 +36,8 @@ public class Board {
             move(pos1, pos2);
         }
         this.name = name;
+        this.data = null;
+        this.field = null;
     }
 
     public void save() {
@@ -49,11 +53,11 @@ public class Board {
     public void move(Location pos1, Location pos2) {
         int xmin, zmin, xmax, zmax, ymin, ymax;
         xmin = Math.min(pos1.getBlockX(), pos2.getBlockX());
-        zmin = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
         xmax = Math.max(pos1.getBlockX(), pos2.getBlockX()) + 1;
+        zmin = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
         zmax = Math.max(pos1.getBlockZ(), pos2.getBlockZ()) + 1;
         ymin = Math.min(pos1.getBlockY(), pos2.getBlockY())-1;
-        ymax = Math.min(pos1.getBlockY(), pos2.getBlockY())-1;
+        ymax = Math.max(pos1.getBlockY(), pos2.getBlockY())+1;
         x = Math.abs(xmax-xmin);
         z = Math.abs(zmax-zmin);
         y = Math.abs(ymax-ymin);
@@ -68,5 +72,34 @@ public class Board {
         pl.sendMessage(ChatColor.GREEN + String.format("Name: %s", name));
         pl.sendMessage(ChatColor.GREEN + String.format("Location: %d-%d,%d-%d,%d-%d", startblock.getX(), 
                 startblock.getX()+x, startblock.getY(), startblock.getY()+y, startblock.getZ(), startblock.getZ()+z));
+    }
+    
+    public void initEmpty() {
+        for (int k = 0; k < y; k++) {
+            for (int i = 0; i < x; i++) {
+                for (int j = 0; j < z; j++) {
+                    if (field != null) {
+                        field[k][i][j] = 0;
+                    }
+                    if (data != null) {
+                        field[k][i][j] = 0;
+                    }
+                }
+            }
+        }
+    }
+    
+    
+    public void update() {
+        for (int k = 0; k < y; k++) {
+            for (int i = 0; i < x; i++) {
+                for (int j = 0; j < z; j++) {
+                    startblock.getRelative(i, k, j).setTypeId(field[k][i][j]);
+                    if (data != null) {
+                        startblock.getRelative(i, k, j).setData((byte) data[k][i][j]);
+                    }
+                }
+            }
+        }
     }
 }

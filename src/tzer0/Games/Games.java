@@ -89,6 +89,9 @@ public class Games extends JavaPlugin {
         invalid.add(Material.FIRE.getId());
         invalid.add(Material.REDSTONE_WIRE.getId());
         invalid.add(Material.WORKBENCH.getId());
+        invalid.add(Material.TRAP_DOOR.getId());
+        invalid.add(Material.SNOW_BLOCK.getId());
+        invalid.add(Material.ICE.getId());
         conf = getConfiguration();
         reload();
         pdfFile = this.getDescription();
@@ -235,7 +238,7 @@ public class Games extends JavaPlugin {
                     if (checkBoard(store.board, pl)) {
                         if (checkGOL(store.board, pl)) {
                             if (l == 2) {
-                                ((GOL)store.board).changeDefault(toInt(args[1  ]), pl);
+                                ((GOL)store.board).changeDefault(toInt(args[1]), pl);
                             } else {
                                 store.board.info(pl);
                             }
@@ -283,6 +286,22 @@ public class Games extends JavaPlugin {
                     }
                 } else if (args[0].equalsIgnoreCase("savestate") || args[0].equalsIgnoreCase("ss")) {
 
+                } else if (args[0].equalsIgnoreCase("testtetris") || args[0].equalsIgnoreCase("tt")) {
+                    for (World world : getServer().getWorlds()) {
+                        LinkedList<Board> list = boards.get(world);
+                        if (list != null) {
+                            for (Board brd : list) {
+                                if (brd instanceof Tetris) {
+                                    ((Tetris) brd).initEmpty();
+                                    ((Tetris) brd).addBlock();
+                                    ((Tetris) brd).next();
+                                    ((Tetris) brd).updateFalling();
+                                    ((Tetris) brd).update();
+                                }
+                            }
+                        }
+                    }
+                    return true;
                 } else if (store.board instanceof GOL) {
                     if (!handleGOLParam((GOL)store.board, store.type, pl, args, false)) {
                         pl.sendMessage("No such command.");
@@ -309,7 +328,7 @@ public class Games extends JavaPlugin {
                 board.clear(null);
             }
             return true;
-        }  else if (args[0].equalsIgnoreCase("circuitboard") || args[0].equalsIgnoreCase("cb")) {
+        } else if (args[0].equalsIgnoreCase("circuitboard") || args[0].equalsIgnoreCase("cb")) {
             board.CircuitBoard(pl.getLocation().getBlock());
             return true;
         } else if (args[0].equalsIgnoreCase("loadstate") || args[0].equalsIgnoreCase("ls")) {
