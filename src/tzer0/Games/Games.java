@@ -49,6 +49,7 @@ public class Games extends JavaPlugin {
      */
     public void onDisable() {
         PluginDescriptionFile pdfFile = this.getDescription();
+        getServer().getScheduler().cancelTasks(this);
         System.out.println(pdfFile.getName() + " disabled.");
     }
 
@@ -187,7 +188,7 @@ public class Games extends JavaPlugin {
                             } else {
                                 pl.sendMessage(ChatColor.RED + "Invalid board-type!");
                             }
-                            
+
                         } else {
                             pl.sendMessage(ChatColor.RED+"Board with that name already exists!");
                         }
@@ -306,63 +307,84 @@ public class Games extends JavaPlugin {
                     if (!handleGOLParam((GOL)store.board, store.type, pl, args, false)) {
                         pl.sendMessage("No such command.");
                     }
+                } else if (store.board instanceof Tetris) {
+                    if (!handleTetrisParam((Tetris)store.board, pl, args, false)) {
+                        pl.sendMessage("No such command.");
+                    }
                 }
             }
         }
         return true;
     }
 
+    public boolean handleTetrisParam(Tetris board, Player pl, String []args, boolean sign) {
+        int l = args.length;
+        if (l >= 1) {
+            if (args[0].equalsIgnoreCase("start")) {
+                board.startGame(pl);
+                return true;
+            } else if (args[0].equalsIgnoreCase("stop")) {
+                board.stopGame(pl);
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     public boolean handleGOLParam(GOL board, CellType type, Player pl, String []args, boolean sign) {
         int l = args.length;
-        if (args[0].equalsIgnoreCase("iterateboard") || args[0].equalsIgnoreCase("ib")) {
-            if (checkBoard(board, pl)) {
-                if (l == 2) {
-                    board.iterate(null, toInt(args[1]));
-                } else {
-                    board.iterate(null, 1);
+        if (l >= 1) {
+            if (args[0].equalsIgnoreCase("iterateboard") || args[0].equalsIgnoreCase("ib")) {
+                if (checkBoard(board, pl)) {
+                    if (l == 2) {
+                        board.iterate(null, toInt(args[1]));
+                    } else {
+                        board.iterate(null, 1);
+                    }
                 }
-            }
-            return true;
-        } else if (args[0].equalsIgnoreCase("clear") || args[0].equalsIgnoreCase("c")) {
-            if (checkBoard(board, pl)) {
-                board.clear(null);
-            }
-            return true;
-        } else if (args[0].equalsIgnoreCase("circuitboard") || args[0].equalsIgnoreCase("cb")) {
-            board.CircuitBoard(pl.getLocation().getBlock());
-            return true;
-        } else if (args[0].equalsIgnoreCase("loadstate") || args[0].equalsIgnoreCase("ls")) {
-            return true;
-        } else if (args[0].equalsIgnoreCase("modtype") || args[0].equalsIgnoreCase("mt")) {
-            if (checkType(type, pl)) {
-                if (l >= 2) {
-                    if (l >= 3) {
-                        int val = toInt(args[2]);
-                        if (val < 0) {
-                            pl.sendMessage(ChatColor.RED + "Invalid value.");
-                            return true;
-                        }
-                        if (args[1].equalsIgnoreCase("survmin") || args[1].equalsIgnoreCase("smin")) {
-                            type.survMin = val;
-                        } else if (args[1].equalsIgnoreCase("survmax") || args[1].equalsIgnoreCase("smax")) {
-                            type.survMax = val;
-                        } else if (args[1].equalsIgnoreCase("creamin") || args[1].equalsIgnoreCase("cmin")) {
-                            type.creaMin = val;
-                        } else if (args[1].equalsIgnoreCase("creamax") || args[1].equalsIgnoreCase("cmax")) {
-                            type.creaMax = val;
-                        }
-                        type.info(pl);
-                        if (!sign) {
-                            type.save();
+                return true;
+            } else if (args[0].equalsIgnoreCase("clear") || args[0].equalsIgnoreCase("c")) {
+                if (checkBoard(board, pl)) {
+                    board.clear(null);
+                }
+                return true;
+            } else if (args[0].equalsIgnoreCase("circuitboard") || args[0].equalsIgnoreCase("cb")) {
+                board.CircuitBoard(pl.getLocation().getBlock());
+                return true;
+            } else if (args[0].equalsIgnoreCase("loadstate") || args[0].equalsIgnoreCase("ls")) {
+                return true;
+            } else if (args[0].equalsIgnoreCase("modtype") || args[0].equalsIgnoreCase("mt")) {
+                if (checkType(type, pl)) {
+                    if (l >= 2) {
+                        if (l >= 3) {
+                            int val = toInt(args[2]);
+                            if (val < 0) {
+                                pl.sendMessage(ChatColor.RED + "Invalid value.");
+                                return true;
+                            }
+                            if (args[1].equalsIgnoreCase("survmin") || args[1].equalsIgnoreCase("smin")) {
+                                type.survMin = val;
+                            } else if (args[1].equalsIgnoreCase("survmax") || args[1].equalsIgnoreCase("smax")) {
+                                type.survMax = val;
+                            } else if (args[1].equalsIgnoreCase("creamin") || args[1].equalsIgnoreCase("cmin")) {
+                                type.creaMin = val;
+                            } else if (args[1].equalsIgnoreCase("creamax") || args[1].equalsIgnoreCase("cmax")) {
+                                type.creaMax = val;
+                            }
+                            type.info(pl);
+                            if (!sign) {
+                                type.save();
+                            }
+                        } else {
+                            pl.sendMessage(ChatColor.RED + "Please provide value.");
                         }
                     } else {
-                        pl.sendMessage(ChatColor.RED + "Please provide value.");
+                        pl.sendMessage(ChatColor.RED + "Please provide field and value.");
                     }
-                } else {
-                    pl.sendMessage(ChatColor.RED + "Please provide field and value.");
                 }
+                return true;
             }
-            return true;
         }
         return false;
     }
@@ -385,7 +407,20 @@ public class Games extends JavaPlugin {
             }
         }
     }
-    
+
+    public LinkedList<Board> allBoards() {
+        LinkedList<Board> out = new LinkedList<Board>();
+        for (World world : getServer().getWorlds()) {
+            LinkedList<Board> list = boards.get(world);
+            if (list != null) {
+                for (Board brd : list) {
+                    out.add(brd);
+                }
+            }
+        }
+        return out;
+    }
+
     public int numberOfBoards() {
         int i = 0;
         for (World wrd : iterationSet) {
@@ -395,7 +430,7 @@ public class Games extends JavaPlugin {
         }
         return i;
     }
-    
+
     public Board findBoard(String bname) {
         for (World w : boards.keySet()) {
             for (Board brd : boards.get(w)) {
@@ -407,6 +442,7 @@ public class Games extends JavaPlugin {
         return null;
     }
 
+    
 
     public boolean checkGOL(Board board, Player pl) {
         if (!(board instanceof GOL)) {

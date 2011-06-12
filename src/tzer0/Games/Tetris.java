@@ -2,41 +2,43 @@ package tzer0.Games;
 
 import java.util.LinkedList;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.entity.Player;
 import org.bukkit.util.config.Configuration;
 
 public class Tetris extends Board {
     char color1, color2;
-    int blocknum;
+    int blockmin, blockmax;
     char dir;
     boolean running;
+    int gr;
     LinkedList<FallingBrick> falling;
     public Tetris(String name, World world, Location pos1, Location pos2,
             boolean imported, Games plugin, Configuration conf) {
         super(name, world, pos1, pos2, imported, plugin, conf);
+        gr = -1;
         running = true;
-        blocknum = 4;
+        blockmin = 4;
+        blockmax = 4;
         this.type = "Tetris";
         save();
         color1 = 0;
-        dir = 0;
+        dir = 1;
         color2 = 15;
         this.field = new int[y][x][z];
         this.data = new byte[y][x][z];
         falling = new LinkedList<FallingBrick>();
         initEmpty();
-        addBlock();
-        next();
-        updateFalling();
-        update();
     }
 
     public void addBlock() {
+        int target = blockmin + (int) (Math.random()*(blockmax-blockmin))-1;
         falling.clear();
         byte d = (byte) (Math.random()*16);
         falling.add(new FallingBrick(startY(), startX(), startZ(), d));
-        for (int i = 0; i < blocknum-1;) {
+        for (int i = 0; i < target;) {
             if (mutate(d)) {
                 if (running) {
                     i++;
@@ -164,14 +166,45 @@ public class Tetris extends Board {
     }
 
     public void next() {
+        if (!running) {
+            stopGame(null);
+            return;
+        }
         if (checkStop()) {
             addBlock();
         } else {
             pull();
         }
+        update();
     }
-
-
+    
+    public void startGame(Player pl) {
+        running = true;
+        stopGame(pl);
+        initEmpty();
+        addBlock();
+        updateFalling();
+        update();
+        if (x*y*z < blockmax) {
+            if (pl != null) {
+                pl.sendMessage("Invalid board size vs. block-size");
+            }
+            running = false;
+            return;
+        }
+        gr = plugin.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, new GameRunner(), 20L, 20L);
+    }
+    
+    public void stopGame(Player pl) {
+        if (gr != -1) {
+            plugin.getServer().getScheduler().cancelTask(gr);
+        }
+    }
+    public void info(Player pl) {
+        super.info(pl);
+        pl.sendMessage(ChatColor.GREEN + "Type: Tetris");
+    }
+    
     class FallingBrick {
         byte data;
         int x, y, z;
@@ -186,6 +219,11 @@ public class Tetris extends Board {
             this.x += modX(dir);
             this.y += modY(dir);
             this.z += modZ(dir);
+        }
+    }
+    class GameRunner extends Thread {
+        public void run() {
+            next();
         }
     }
 }
