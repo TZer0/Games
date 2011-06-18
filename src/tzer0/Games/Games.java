@@ -287,22 +287,6 @@ public class Games extends JavaPlugin {
                     }
                 } else if (args[0].equalsIgnoreCase("savestate") || args[0].equalsIgnoreCase("ss")) {
 
-                } else if (args[0].equalsIgnoreCase("testtetris") || args[0].equalsIgnoreCase("tt")) {
-                    for (World world : getServer().getWorlds()) {
-                        LinkedList<Board> list = boards.get(world);
-                        if (list != null) {
-                            for (Board brd : list) {
-                                if (brd instanceof Tetris) {
-                                    ((Tetris) brd).initEmpty();
-                                    ((Tetris) brd).addBlock();
-                                    ((Tetris) brd).next();
-                                    ((Tetris) brd).updateFalling();
-                                    ((Tetris) brd).update();
-                                }
-                            }
-                        }
-                    }
-                    return true;
                 } else if (store.board instanceof GOL) {
                     if (!handleGOLParam((GOL)store.board, store.type, pl, args, false)) {
                         pl.sendMessage("No such command.");

@@ -21,17 +21,22 @@ public class GamesBlockListener extends BlockListener {
     }
     public void onSignChange(SignChangeEvent event) {
         Player pl = event.getPlayer();
-        if (event.getLine(0).equalsIgnoreCase("[gol]")) {
-            if (plugin.permissions.has(pl, "games.admin")) {
-                event.setLine(0, ChatColor.DARK_GREEN+"[GOL]");
-            } else {
-                event.setLine(0, ChatColor.RED + "No access.");
-            }
-            ((Sign)event.getBlock().getState()).update(true);
-        } else if (event.getLine(0).equalsIgnoreCase("[clear]")) {
-            if (plugin.permissions.has(pl, "games.admin")) {
-                event.setLine(0, ChatColor.DARK_RED+"[CLEAR]");
-            } else {
+        boolean access = plugin.permissions.has(pl, "games.admin");
+        boolean changed = false;
+        String line = event.getLine(0);
+        if (line.equalsIgnoreCase("[gol]")) {
+            event.setLine(0, ChatColor.DARK_GREEN+"[GOL]");
+            changed = true;
+        } else if (line.equalsIgnoreCase("[clear]")) {
+            event.setLine(0, ChatColor.DARK_RED+"[CLEAR]");
+            changed = true;
+        } else if (line.equalsIgnoreCase("[tetris]")) {
+            event.setLine(0, ChatColor.DARK_GREEN + "[Tetris]");
+            changed = true;
+        }
+        
+        if (changed) {
+            if (!access) {
                 event.setLine(0, ChatColor.RED + "No access.");
             }
             ((Sign)event.getBlock().getState()).update(true);

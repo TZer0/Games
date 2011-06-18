@@ -44,24 +44,24 @@ public class GamesPlayerListener extends PlayerListener  {
         Player pl = event.getPlayer();
         if (event.getClickedBlock().getType() == Material.WALL_SIGN || event.getClickedBlock().getType() == Material.SIGN_POST) {
             Sign tmp = (Sign)event.getClickedBlock().getState();
+            String lines[] = tmp.getLines();
             Board brd = plugin.findBoard(tmp.getLine(1));
-            if (tmp.getLine(0).equalsIgnoreCase(ChatColor.DARK_GREEN + "[gol]")) {
+            if (lines[0].equalsIgnoreCase(ChatColor.DARK_GREEN + "[gol]")) {
                 if (brd == null) {
                     pl.sendMessage(ChatColor.RED + "Could not find board.");
+                } else if (! (brd instanceof GOL)) {
+                    pl.sendMessage(ChatColor.RED + "Board is of incorrect type.");
                 } else {
-                    if (plugin.checkGOL(brd, pl)) {
-                        ((GOL)brd).iterate(pl, plugin.toInt(tmp.getLine(2)));
-                    }
+                    ((GOL)brd).handleSignal(tmp.getLine(2), pl);
                 }
-            } else if (tmp.getLine(0).equalsIgnoreCase(ChatColor.DARK_RED + "[CLEAR]")) {
+            } else if (lines[0].equalsIgnoreCase(ChatColor.DARK_GREEN+"[tetris]")) {
                 if (brd == null) {
                     pl.sendMessage(ChatColor.RED + "Could not find board.");
+                } else if (! (brd instanceof Tetris)) {
+                    pl.sendMessage(ChatColor.RED + "Board is of incorrect type.");
                 } else {
-                    if (plugin.checkGOL(brd, pl)) {
-                        ((GOL)brd).clear(pl);
-                    }
+                    ((Tetris)brd).handleSignal(tmp.getLine(2), pl);
                 }
-
             }
         }
         LinkedList<Board> list = plugin.boards.get(pl.getWorld());

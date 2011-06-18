@@ -11,7 +11,7 @@ import org.bukkit.util.config.Configuration;
 public class Tetris extends Board {
     char color1, color2;
     int blockmin, blockmax;
-    char dir;
+    char tdir;
     boolean running;
     int gr;
     LinkedList<FallingBrick> falling;
@@ -25,7 +25,7 @@ public class Tetris extends Board {
         this.type = "Tetris";
         save();
         color1 = 0;
-        dir = 1;
+        tdir = 0;
         color2 = 15;
         this.field = new int[y][x][z];
         this.data = new byte[y][x][z];
@@ -36,18 +36,23 @@ public class Tetris extends Board {
     public void addBlock() {
         int target = blockmin + (int) (Math.random()*(blockmax-blockmin))-1;
         falling.clear();
+        checkForFilled();
         byte d = (byte) (Math.random()*16);
         falling.add(new FallingBrick(startY(), startX(), startZ(), d));
         for (int i = 0; i < target;) {
             if (mutate(d)) {
                 if (running) {
                     i++;
-               } else {
-                   break;
-               }
+                } else {
+                    break;
+                }
             }
         }
         updateFalling();
+    }
+    
+    public void checkForFilled() {
+        
     }
 
     public boolean mutate(byte d) {
@@ -78,7 +83,7 @@ public class Tetris extends Board {
         conf.save();
     }
 
-    public boolean checkStop() {
+    public boolean checkStop(int dir) {
         for (FallingBrick f : falling) {
             if (collides(f.y+modY(dir), f.x+modX(dir), f.z+modZ(dir))) {
                 boolean found = false;
@@ -107,9 +112,9 @@ public class Tetris extends Board {
     }
 
     public int startX() {
-        if (dir == 2) {
+        if (tdir == 2) {
             return x-1;
-        } else if (dir == 3) {
+        } else if (tdir == 3) {
             return 0;
         } else {
             return (int) (Math.random() * x);
@@ -117,9 +122,9 @@ public class Tetris extends Board {
     }
 
     public int startY() {
-        if (dir == 0) {
+        if (tdir == 0) {
             return y-1;
-        } else if (dir == 1) {
+        } else if (tdir == 1) {
             return 0;
         } else {
             return (int) (Math.random() * y);
@@ -127,9 +132,9 @@ public class Tetris extends Board {
     }
 
     public int startZ() {
-        if (dir == 4) {
+        if (tdir == 4) {
             return z-1;
-        } else if (dir == 5) {
+        } else if (tdir == 5) {
             return 0;
         } else {
             return (int) (Math.random() * z);
@@ -146,11 +151,11 @@ public class Tetris extends Board {
     public boolean outOfBounds(int cy, int cx, int cz) {
         return (cy < 0 || cx < 0 || cz < 0 || cx >= x || cy >= y || cz >= z);
     }
-    public void pull() {
+    public void pull(int dir) {
         for (FallingBrick f : falling) {
             this.field[f.y][f.x][f.z] = 0;
             this.data[f.y][f.x][f.z] = 0;
-            f.pull();
+            f.pull(dir);
             this.field[f.y][f.x][f.z] = 35;
             this.data[f.y][f.x][f.z] = f.data;
         }
@@ -165,19 +170,42 @@ public class Tetris extends Board {
 
     }
 
-    public void next() {
+    public void next(int dir) {
         if (!running) {
             stopGame(null);
             return;
         }
-        if (checkStop()) {
+        if (checkStop(dir)) {
             addBlock();
         } else {
-            pull();
+            pull(dir);
         }
         update();
     }
-    
+
+    public void move(int dir) {
+        if (!running) {
+            return;
+        }
+        if (!checkStop(dir)) {
+            pull(dir);
+        }
+        update();
+    }
+
+    public void handleSignal(String input, Player pl) {
+        String in[] = input.split("-");
+        if (in.length != 0) {
+            if (plugin.checkInt(in[0])) {
+                
+                int dir = plugin.toInt(input);
+                move(dir);
+            } else {
+                
+            }
+        }
+    }
+
     public void startGame(Player pl) {
         running = true;
         stopGame(pl);
@@ -194,17 +222,18 @@ public class Tetris extends Board {
         }
         gr = plugin.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, new GameRunner(), 20L, 20L);
     }
-    
+
     public void stopGame(Player pl) {
         if (gr != -1) {
             plugin.getServer().getScheduler().cancelTask(gr);
         }
     }
+
     public void info(Player pl) {
         super.info(pl);
         pl.sendMessage(ChatColor.GREEN + "Type: Tetris");
     }
-    
+
     class FallingBrick {
         byte data;
         int x, y, z;
@@ -215,7 +244,7 @@ public class Tetris extends Board {
             this.data = data;
         }
 
-        public void pull() {
+        public void pull(int dir) {
             this.x += modX(dir);
             this.y += modY(dir);
             this.z += modZ(dir);
@@ -223,7 +252,7 @@ public class Tetris extends Board {
     }
     class GameRunner extends Thread {
         public void run() {
-            next();
+            next(tdir);
         }
     }
 }
