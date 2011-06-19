@@ -100,6 +100,7 @@ public class Tetris extends Board {
         }
         return false;
     }
+    
 
     public int modX(int dir) {
         return (dir == 3 ? 1 : 0) - (dir == 2 ? 1 : 0);
@@ -192,14 +193,28 @@ public class Tetris extends Board {
         }
         update();
     }
+    
+    public LinkedList<FallingBrick> getRotated(int dir) {
+        LinkedList<FallingBrick> out = new LinkedList<FallingBrick>();
+        FallingBrick central = falling.get(0);
+        out.push(central);
+        for (int i = 1; i < falling.size(); i++) {
+            
+        }
+        return out;
+    }
 
+    public void rotate(int dir) {
+
+    }
+    
     public void handleSignal(String input, Player pl) {
         String in[] = input.split("-");
         if (in.length != 0) {
-            if (plugin.checkInt(in[0])) {
+            if (in[0].contains("r")) {
                 
-                int dir = plugin.toInt(input);
-                move(dir);
+            } else if (plugin.checkInt(in[0])) {
+                move(plugin.toInt(input));
             } else {
                 
             }
