@@ -49,10 +49,6 @@ public class Board {
         conf.setProperty(pre+"sz", startblock.getZ());
         conf.save();
     }
-
-    public void handleSignal(String input, Player pl) {
-        
-    }
     
     public void move(Location pos1, Location pos2) {
         int xmin, zmin, xmax, zmax, ymin, ymax;

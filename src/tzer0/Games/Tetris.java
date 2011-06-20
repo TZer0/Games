@@ -8,7 +8,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.util.config.Configuration;
 
-public class Tetris extends Board {
+public class Tetris extends Board implements SignalReceiver {
     char color1, color2;
     int blockmin, blockmax;
     char tdir;
@@ -36,7 +36,7 @@ public class Tetris extends Board {
     public void addBlock() {
         int target = blockmin + (int) (Math.random()*(blockmax-blockmin))-1;
         falling.clear();
-        checkForFilled();
+        checkFilled();
         byte d = (byte) (Math.random()*16);
         falling.add(new FallingBrick(startY(), startX(), startZ(), d));
         for (int i = 0; i < target;) {
@@ -50,8 +50,8 @@ public class Tetris extends Board {
         }
         updateFalling();
     }
-    
-    public void checkForFilled() {
+
+    public void checkFilled() {
         
     }
 
@@ -100,7 +100,7 @@ public class Tetris extends Board {
         }
         return false;
     }
-    
+
 
     public int modX(int dir) {
         return (dir == 3 ? 1 : 0) - (dir == 2 ? 1 : 0);
@@ -118,7 +118,7 @@ public class Tetris extends Board {
         } else if (tdir == 3) {
             return 0;
         } else {
-            return (int) (Math.random() * x);
+            return (int) (0.5 * x);
         }
     }
 
@@ -128,7 +128,7 @@ public class Tetris extends Board {
         } else if (tdir == 1) {
             return 0;
         } else {
-            return (int) (Math.random() * y);
+            return (int) (0.5 * y);
         }
     }
 
@@ -138,7 +138,7 @@ public class Tetris extends Board {
         } else if (tdir == 5) {
             return 0;
         } else {
-            return (int) (Math.random() * z);
+            return (int) (0.5 * z);
         }
     }
 
@@ -193,28 +193,74 @@ public class Tetris extends Board {
         }
         update();
     }
-    
+
     public LinkedList<FallingBrick> getRotated(int dir) {
         LinkedList<FallingBrick> out = new LinkedList<FallingBrick>();
-        FallingBrick central = falling.get(0);
-        out.push(central);
-        for (int i = 1; i < falling.size(); i++) {
-            
+        FallingBrick c = falling.get(0);
+        FallingBrick tmp;
+        out.push(c);
+        for (int i = 0; i < falling.size(); i++) {
+            tmp = falling.get(i);
+            if (tmp == c) {
+                continue;
+            }
+            out.push(getRelative(dir, tmp, c));
         }
         return out;
     }
 
-    public void rotate(int dir) {
-
+    public FallingBrick getRelative(int dir, FallingBrick p1, FallingBrick p2) {
+        int x, y, z, nx, ny, nz;
+        y = p2.y-p1.y;
+        x = p2.x-p1.x;
+        z = p2.z-p1.z;
+        // (dir == 0 ? -x : 0)
+        ny = (dir == 0 ? -x : 0) + (dir == 1 ?  x : 0) +  (dir == 2 ? -z : 0) + (dir == 3 ?  z : 0) + ((dir == 4 || dir == 5) ? p1.y - p2.y : 0);
+        nx = (dir == 0 ?  y : 0) + (dir == 1 ? -y : 0) + ((dir == 2 || dir == 3) ? p1.x - p2.x : 0) + (dir == 4 ? -z : 0) + (dir == 5 ?  z : 0);
+        nz = ((dir == 0 || dir == 1) ? p1.z - p2.z : 0) + (dir == 2 ?  y : 0) + (dir == 3 ? -y : 0) + (dir == 4 ?  x : 0) + (dir == 5 ? -x : 0);
+        FallingBrick out = new FallingBrick(p2.y+ny, p2.x+nx, p2.z+nz, p2.data);
+        return out;
     }
-    
-    public void handleSignal(String input, Player pl) {
-        String in[] = input.split("-");
+
+    public boolean checkFalling(LinkedList<FallingBrick> bricks) {
+        for (FallingBrick f : falling) {
+            field[f.y][f.x][f.z] = 0;
+        }
+        for (FallingBrick brk : bricks) {
+            if (collides(brk.y, brk.x, brk.z)) {
+                for (FallingBrick f : falling) {
+                    field[f.y][f.x][f.z] = 35;
+                }
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public void rotate(int dir) {
+        if (falling == null || falling.size() == 0) {
+            return;
+        }
+        LinkedList<FallingBrick> result = getRotated(dir);
+        if (checkFalling(result)) {
+            falling = result;
+            updateFalling();
+        }
+        update();
+    }
+
+    public void handleSignal(String input[], Player pl) {
+        String in[] = input[2].split("-");
         if (in.length != 0) {
             if (in[0].contains("r")) {
-                
+                String rin[] = in[0].split("r");
+                if (rin.length != 0) {
+                    if (plugin.checkInt(rin[0])) {
+                        rotate(Integer.parseInt(rin[0]));
+                    }
+                }
             } else if (plugin.checkInt(in[0])) {
-                move(plugin.toInt(input));
+                move(Integer.parseInt(in[0]));
             } else {
                 
             }
@@ -235,7 +281,7 @@ public class Tetris extends Board {
             running = false;
             return;
         }
-        gr = plugin.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, new GameRunner(), 20L, 20L);
+        gr = plugin.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, new GameRunner(), 40L, 40L);
     }
 
     public void stopGame(Player pl) {

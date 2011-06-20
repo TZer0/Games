@@ -14,7 +14,7 @@ import org.bukkit.util.config.Configuration;
 import org.bukkit.util.config.ConfigurationNode;
 
 
-public class GOL  extends Board implements Interactable {
+public class GOL  extends Board implements Interactable, SignalReceiver {
     int def;
     LinkedList<CellType> races;
 
@@ -77,6 +77,18 @@ public class GOL  extends Board implements Interactable {
         }
         update();
     }
+    public void handleSignal(String signal[], Player pl) {
+        String[] signals = signal[2].split("-");
+        int l = signals.length;
+        if (signals[0].equalsIgnoreCase("iterate") || signals[0].equalsIgnoreCase("i")) {
+            int s = 1;
+            if (l == 2) {
+                s = plugin.toInt(signals[1]);
+            }
+            iterate(pl, s);
+        }
+    }
+    
     public void iterate(Player pl, int iter) {
         if (iter <= 0) {
             iter = 1;
@@ -268,7 +280,7 @@ public class GOL  extends Board implements Interactable {
         return tmp;
     }
     public boolean isInBoard(Block pos) {
-        if ((pos.getY() == startblock.getY() || pos.getY() == startblock.getY() +1) && pos.getX() >= startblock.getX() && pos.getX() < (startblock.getX()+x) &&
+        if ((pos.getY() == startblock.getY() || pos.getY() == startblock.getY() +1|| pos.getY() == startblock.getY() -1) && pos.getX() >= startblock.getX() && pos.getX() < (startblock.getX()+x) &&
                 pos.getZ() >= startblock.getZ() && pos.getZ() < (startblock.getZ()+z)) {
             return true;
         }
