@@ -282,6 +282,25 @@ public class Games extends JavaPlugin {
                                     store.type = null;
                                 }
                                 ((GOL)store.board).removeCell(toInt(args[1]), pl);
+                                for (CellType type : ((GOL)store.board).races) {
+                                    type.removeOther(toInt(args[1]));
+                                }
+                            }
+                        }
+                    }
+                } else if (args[0].equalsIgnoreCase("modifyproperties") || args[0].equalsIgnoreCase("mp")) {
+                    if (checkBoard(store.board, pl)) {
+                        if (checkTetris(store.board, pl)) {
+                            if (l >= 2) {
+                                if (l == 3) {
+                                    if (args[1].equalsIgnoreCase("blockmax") || args[1].equalsIgnoreCase("max")) {
+                                        ((Tetris)store.board).blockmax = Math.max(toInt(args[2]), ((Tetris)store.board).blockmin);
+                                    } else if (args[1].equalsIgnoreCase("blockmin") || args[1].equalsIgnoreCase("min")) {
+                                        ((Tetris)store.board).blockmin = Math.min(toInt(args[2]), ((Tetris)store.board).blockmax);
+                                    }
+                                    ((Tetris)store.board).info(pl);
+                                    ((Tetris)store.board).save();
+                                }
                             }
                         }
                     }
@@ -314,7 +333,6 @@ public class Games extends JavaPlugin {
         }
         return false;
     }
-
 
     public boolean handleGOLParam(GOL board, CellType type, Player pl, String []args, boolean sign) {
         int l = args.length;
@@ -426,8 +444,6 @@ public class Games extends JavaPlugin {
         return null;
     }
 
-    
-
     public boolean checkGOL(Board board, Player pl) {
         if (!(board instanceof GOL)) {
             pl.sendMessage(ChatColor.RED + "This is not a game of life-board!");
@@ -435,6 +451,15 @@ public class Games extends JavaPlugin {
         }
         return true;
     }
+    
+    public boolean checkTetris(Board board, Player pl) {
+        if (!(board instanceof Tetris)) {
+            pl.sendMessage(ChatColor.RED + "This is not a Tetris-board!");
+            return false;
+        }
+        return true;
+    } 
+    
     public boolean checkBoard(Board board, Player pl) {
         if (board == null) {
             pl.sendMessage(ChatColor.RED + "No board selected, please select one.");
@@ -442,15 +467,19 @@ public class Games extends JavaPlugin {
         }
         return true;
     }
+    
     public boolean checkType(CellType type, Player pl) {
         if (type == null) {
             pl.sendMessage(ChatColor.RED + "No type selected, please select one.");
+            return false;
         }
         return true;
     }
+    
     public boolean checkNode(PlayerStorage store, Player pl) {
         return true;
     }
+    
     public void posInfo(Location pos, String name, Player pl) {
         if (pos != null) {
             pl.sendMessage(ChatColor.YELLOW + String.format("%s: (%d, %d, %d) in %s", 
@@ -464,7 +493,6 @@ public class Games extends JavaPlugin {
      */
     private void setupPermissions() {
         Plugin test = this.getServer().getPluginManager().getPlugin("Permissions");
-
         if (this.permissions == null) {
             if (test != null) {
                 this.permissions = ((Permissions) test).getHandler();

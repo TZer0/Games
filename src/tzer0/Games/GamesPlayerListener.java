@@ -52,7 +52,8 @@ public class GamesPlayerListener extends PlayerListener  {
                 } else if (! (brd instanceof GOL)) {
                     pl.sendMessage(ChatColor.RED + "Board is of incorrect type.");
                 } else {
-                    ((GOL)brd).handleSignal(lines, pl);
+                    ((GOL)brd).handleSignal(tmp, pl);
+                    return;
                 }
             } else if (lines[0].equalsIgnoreCase(ChatColor.DARK_GREEN+"[tetris]")) {
                 if (brd == null) {
@@ -60,7 +61,8 @@ public class GamesPlayerListener extends PlayerListener  {
                 } else if (! (brd instanceof Tetris)) {
                     pl.sendMessage(ChatColor.RED + "Board is of incorrect type.");
                 } else {
-                    ((Tetris)brd).handleSignal(lines, pl);
+                    ((Tetris)brd).handleSignal(tmp, pl);
+                    return;
                 }
             }
         }

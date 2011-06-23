@@ -2,6 +2,7 @@ package tzer0.Games;
 
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import org.bukkit.ChatColor;
@@ -9,12 +10,13 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 import org.bukkit.util.config.Configuration;
 import org.bukkit.util.config.ConfigurationNode;
 
 
-public class GOL  extends Board implements Interactable, SignalReceiver {
+public class GOL extends Board implements Interactable, SignalReceiver {
     int def;
     LinkedList<CellType> races;
 
@@ -77,7 +79,8 @@ public class GOL  extends Board implements Interactable, SignalReceiver {
         }
         update();
     }
-    public void handleSignal(String signal[], Player pl) {
+    public void handleSignal(Sign sign, Player pl) {
+        String signal[] = sign.getLines();
         String[] signals = signal[2].split("-");
         int l = signals.length;
         if (signals[0].equalsIgnoreCase("iterate") || signals[0].equalsIgnoreCase("i")) {
@@ -295,9 +298,11 @@ public class GOL  extends Board implements Interactable, SignalReceiver {
         int creaMin, creaMax, survMin, survMax;
         int material;
         String savepre;
+        List<Integer> kills;
         public CellType(int material) {
             this.material = material;
-            savepre = pre + "types." + material + "."; 
+            savepre = pre + "types." + material + ".";
+            kills = conf.getIntList(savepre+"kills", null);
             creaMin = 3;
             creaMax = 3;
             survMin = 1;
@@ -319,6 +324,7 @@ public class GOL  extends Board implements Interactable, SignalReceiver {
             conf.setProperty(savepre + "smin" , survMin);
             conf.setProperty(savepre + "smax" , survMax);
             conf.setProperty(savepre + "def" , def);
+            conf.setProperty(savepre + "kills", kills);
             conf.save();
         }
 
@@ -335,6 +341,12 @@ public class GOL  extends Board implements Interactable, SignalReceiver {
             update();
         }
 
+        public void removeOther(int i) {
+            kills.remove(i);
+            save();
+        }
+        
+        
         public void info(Player pl) {
             pl.sendMessage(ChatColor.GREEN + 
                     String.format("Material: %d, cmin: %d, cmax: %d, smin: %d, smax: %d",

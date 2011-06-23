@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 import org.bukkit.util.config.Configuration;
 
@@ -14,29 +15,38 @@ public class Tetris extends Board implements SignalReceiver {
     char tdir;
     boolean running;
     int gr;
+    int p;
+    Sign points;
     LinkedList<FallingBrick> falling;
     public Tetris(String name, World world, Location pos1, Location pos2,
             boolean imported, Games plugin, Configuration conf) {
         super(name, world, pos1, pos2, imported, plugin, conf);
+        points = null;
         gr = -1;
         running = true;
-        blockmin = 4;
-        blockmax = 4;
+        blockmin = conf.getInt(pre + "bmin", 4);
+        blockmax = conf.getInt(pre + "bmax", 4);
         this.type = "Tetris";
         save();
         color1 = 0;
         tdir = 0;
+        p = 0;
         color2 = 15;
         this.field = new int[y][x][z];
         this.data = new byte[y][x][z];
         falling = new LinkedList<FallingBrick>();
         initEmpty();
+        update();
     }
 
     public void addBlock() {
+        if (x*y*z < blockmax) {
+            return;
+        }
         int target = blockmin + (int) (Math.random()*(blockmax-blockmin))-1;
+        filledDetect();
+
         falling.clear();
-        checkFilled();
         byte d = (byte) (Math.random()*16);
         falling.add(new FallingBrick(startY(), startX(), startZ(), d));
         for (int i = 0; i < target;) {
@@ -51,8 +61,128 @@ public class Tetris extends Board implements SignalReceiver {
         updateFalling();
     }
 
-    public void checkFilled() {
-        
+    public void filledDetect() {
+        for (int i = 0; i < dir1Selector(tdir, y, x, z); i++) {
+            boolean found = false;
+            if (tdir == 0 || tdir == 1) {
+                if (checkYPlane(i)) {
+                    pullYDir(i);
+                    found = true;
+                }
+            } else if (tdir == 2 || tdir == 3) {
+                if (checkXPlane(i)) {
+                    pullXDir(i);
+                    found = true;
+                }
+            } else if (tdir == 4 || tdir == 5) {
+                if (checkZPlane(i)) {
+                    pullZDir(i);
+                    found = true;
+                }
+            }
+            if (found) {
+                p += 10;
+                i--;
+                updatePoints();
+            }
+        }
+    }
+
+    public void pullYDir(int l) {
+        int i;
+        for (i = l; (tdir == 0 ? i < y-1 : i > 1); i += (tdir == 0 ? 1 : -1)) {
+            for (int k = 0; k < x; k++) {
+                for (int j = 0; j < z; j++) {
+                    field[i][k][j] = field[(tdir == 0 ? i + 1 : i - 1)][k][j];
+                    data[i][k][j] = data[(tdir == 0 ? i + 1 : i - 1)][k][j];
+                }
+            }
+        }
+        for (int k = 0; k < x; k++) {
+            for (int j = 0; j < z; j++) {
+                field[i][k][j] = 0;
+                data[i][k][j] = 0;
+            }
+        }
+    }
+    
+    public void pullXDir(int l) {
+        int i;
+        for (i = l; (tdir == 2 ? i < x-1 : i > 1); i += (tdir == 2 ? 1 : -1)) {
+            for (int k = 0; k < y; k++) {
+                for (int j = 0; j < z; j++) {
+                    field[k][i][j] = field[k][(tdir == 2 ? i + 1 : i - 1)][j];
+                    data[k][i][j] = data[k][(tdir == 2 ? i + 1 : i - 1)][j];
+                }
+            }
+        }
+        for (int k = 0; k < x; k++) {
+            for (int j = 0; j < z; j++) {
+                field[k][i][j] = 0;
+                data[k][i][j] = 0;
+            }
+        }
+    }
+    
+    public void pullZDir(int l) {
+        int i;
+        for (i = l; (tdir == 4 ? i < z-1 : i > 1); i += (tdir == 4 ? 1 : -1)) {
+            for (int k = 0; k < y; k++) {
+                for (int j = 0; j < x; j++) {
+                    field[k][j][i] = field[k][j][(tdir == 4 ? i + 1 : i - 1)];
+                    data[k][j][i] = data[k][j][(tdir == 4 ? i + 1 : i - 1)];
+                }
+            }
+        }
+        for (int k = 0; k < y; k++) {
+            for (int j = 0; j < x; j++) {
+                field[k][j][i] = 0;
+                data[k][j][i] = 0;
+            }
+        }
+    }
+
+    boolean checkYPlane(int level) {
+        for (int j = 0; j < x; j++ ) {
+            for (int k = 0; k < z; k++) {
+                if (field[level][j][k] != 35) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    boolean checkXPlane(int level) {
+        for (int j = 0; j < y; j++ ) {
+            for (int k = 0; k < z; k++) {
+                if (field[j][level][k] != 35) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }    
+
+    boolean checkZPlane(int level) {
+        for (int j = 0; j < y; j++ ) {
+            for (int k = 0; k < x; k++) {
+                if (field[j][k][level] != 35) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    public int dir1Selector(int dir, int y, int x, int z) {
+        return ((dir == 0 || dir == 1) ? y : 0) + ((dir == 2 || dir == 3) ? x : 0) + ((dir == 4 || dir == 5) ? z : 0);
+    }
+
+    public int dir2Selector(int dir, int y, int x, int z) {
+        return ((dir == 0 || dir == 1) ? x : 0) + ((dir == 2 || dir == 3) ? y : 0) + ((dir == 4 || dir == 5) ? y : 0);
+    }
+
+    public int dir3Selector(int dir, int y, int x, int z) {
+        return ((dir == 0 || dir == 1) ? z : 0) + ((dir == 2 || dir == 3) ? z : 0) + ((dir == 4 || dir == 5) ? x : 0);
     }
 
     public boolean mutate(byte d) {
@@ -80,6 +210,8 @@ public class Tetris extends Board implements SignalReceiver {
     public void save() {
         super.save();
         conf.setProperty(pre + "type", type);
+        conf.setProperty(pre + "bmin", blockmin);
+        conf.setProperty(pre + "bmax", blockmax);
         conf.save();
     }
 
@@ -249,7 +381,8 @@ public class Tetris extends Board implements SignalReceiver {
         update();
     }
 
-    public void handleSignal(String input[], Player pl) {
+    public void handleSignal(Sign sign, Player pl) {
+        String input[] = sign.getLines();
         String in[] = input[2].split("-");
         if (in.length != 0) {
             if (in[0].contains("r")) {
@@ -261,13 +394,23 @@ public class Tetris extends Board implements SignalReceiver {
                 }
             } else if (plugin.checkInt(in[0])) {
                 move(Integer.parseInt(in[0]));
-            } else {
-                
+            } else if (input[2].equalsIgnoreCase("points")) {
+                points = sign;
+                updatePoints();
             }
         }
     }
 
+    public void updatePoints() {
+        if (points != null) {
+            points.setLine(3, ""+p);
+            points.update();
+        }
+    }
+    
     public void startGame(Player pl) {
+        p = 0;
+        updatePoints();
         running = true;
         stopGame(pl);
         initEmpty();
@@ -293,6 +436,8 @@ public class Tetris extends Board implements SignalReceiver {
     public void info(Player pl) {
         super.info(pl);
         pl.sendMessage(ChatColor.GREEN + "Type: Tetris");
+        pl.sendMessage(ChatColor.GREEN + String.format("Min blocksize: %d, max blocksize: %d", 
+                blockmin, blockmax));
     }
 
     class FallingBrick {
