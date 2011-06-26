@@ -282,9 +282,6 @@ public class Games extends JavaPlugin {
                                     store.type = null;
                                 }
                                 ((GOL)store.board).removeCell(toInt(args[1]), pl);
-                                for (CellType type : ((GOL)store.board).races) {
-                                    type.removeOther(toInt(args[1]));
-                                }
                             }
                         }
                     }

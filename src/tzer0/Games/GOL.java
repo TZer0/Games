@@ -2,7 +2,6 @@ package tzer0.Games;
 
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 import org.bukkit.ChatColor;
@@ -298,11 +297,9 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         int creaMin, creaMax, survMin, survMax;
         int material;
         String savepre;
-        List<Integer> kills;
         public CellType(int material) {
             this.material = material;
-            savepre = pre + "types." + material + ".";
-            kills = conf.getIntList(savepre+"kills", null);
+            savepre = pre + "types." + material + "."; 
             creaMin = 3;
             creaMax = 3;
             survMin = 1;
@@ -324,7 +321,6 @@ public class GOL extends Board implements Interactable, SignalReceiver {
             conf.setProperty(savepre + "smin" , survMin);
             conf.setProperty(savepre + "smax" , survMax);
             conf.setProperty(savepre + "def" , def);
-            conf.setProperty(savepre + "kills", kills);
             conf.save();
         }
 
@@ -341,12 +337,6 @@ public class GOL extends Board implements Interactable, SignalReceiver {
             update();
         }
 
-        public void removeOther(int i) {
-            kills.remove(i);
-            save();
-        }
-        
-        
         public void info(Player pl) {
             pl.sendMessage(ChatColor.GREEN + 
                     String.format("Material: %d, cmin: %d, cmax: %d, smin: %d, smax: %d",
