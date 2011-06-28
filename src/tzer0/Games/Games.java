@@ -282,6 +282,9 @@ public class Games extends JavaPlugin {
                                     store.type = null;
                                 }
                                 ((GOL)store.board).removeCell(toInt(args[1]), pl);
+                                for (CellType type : ((GOL)store.board).races) {
+                                    type.removeOther(toInt(args[1]), null);
+                                }
                             }
                         }
                     }
@@ -370,6 +373,10 @@ public class Games extends JavaPlugin {
                                 type.creaMin = val;
                             } else if (args[1].equalsIgnoreCase("creamax") || args[1].equalsIgnoreCase("cmax")) {
                                 type.creaMax = val;
+                            } else if (args[1].equalsIgnoreCase("addpriority") || args[1].equalsIgnoreCase("ap")) {
+                                type.addOther(val, pl);
+                            } else if (args[1].equalsIgnoreCase("deletepriority") || args[1].equalsIgnoreCase("dp")) {         
+                                type.removeOther(val, pl);
                             }
                             type.info(pl);
                             if (!sign) {
@@ -500,7 +507,7 @@ public class Games extends JavaPlugin {
         }
     }
     /**
-     * Converts to int if valid, if not: returns 0
+     * Converts to int if valid, if not: returns -1
      * @param in
      * @param sender
      * @return
