@@ -33,8 +33,11 @@ public class GamesBlockListener extends BlockListener {
         } else if (line.equalsIgnoreCase("[tetris]")) {
             event.setLine(0, ChatColor.DARK_GREEN + "[Tetris]");
             changed = true;
-        } else if (line.equalsIgnoreCase("[cont]")) {
-            event.setLine(0, ChatColor.DARK_GREEN + "[cont]");
+        } else if (line.equalsIgnoreCase("[exp]")) {
+            event.setLine(0, ChatColor.DARK_GREEN + "[EXP]");
+            changed = true;
+        } else if (line.equalsIgnoreCase("[conn]")) {
+            event.setLine(0, ChatColor.DARK_GREEN + "[CONN]");
             changed = true;
         }
         

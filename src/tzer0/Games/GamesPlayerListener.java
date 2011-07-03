@@ -64,7 +64,7 @@ public class GamesPlayerListener extends PlayerListener  {
                     ((Tetris)brd).handleSignal(tmp, pl);
                     return;
                 }
-            } else if (lines[0].equalsIgnoreCase(ChatColor.DARK_GREEN + "[cont]")) {
+            } else if (lines[0].equalsIgnoreCase(ChatColor.DARK_GREEN + "[exp]")) {
                 pl.sendMessage(ChatColor.RED + "This sign cannot be directly executed.");
             }
         }

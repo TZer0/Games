@@ -170,14 +170,16 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                                plugin.toInt(splitCmd[2]), plugin.toInt(splitCmd[3]));
                         if (bl.getType() == Material.SIGN_POST || bl.getType() == Material.WALL_SIGN) {
                             Sign newSign = (Sign) bl.getState();
-                            if (newSign.getLine(0).equalsIgnoreCase(ChatColor.DARK_GREEN + "[cont]")) {
+                            if (newSign.getLine(0).equalsIgnoreCase(ChatColor.DARK_GREEN + "[exp]")) {
                                 executeSign(newSign, pl, 1, 3);
                             } else {
-                                pl.sendMessage(ChatColor.RED + "First line must be " + ChatColor.DARK_GREEN + "[CONT]");
+                                pl.sendMessage(ChatColor.RED + "First line must be " + ChatColor.DARK_GREEN + "[EXP]");
                             }
                         } else {
                             pl.sendMessage(ChatColor.RED + "Target is not a sign!");
                         }
+                    } else {
+                        pl.sendMessage(ChatColor.RED + "No such command - " + cmd);
                     }
                 }
             }
@@ -193,8 +195,8 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                 if (bl.getType() == Material.SIGN_POST) {
                     Sign s = (Sign) bl.getState();
                     String[] lines = s.getLines();
-                    if (lines[0].equalsIgnoreCase(ChatColor.DARK_GREEN+"[gol]") && lines[1].equalsIgnoreCase(name)
-                            && lines[2].equalsIgnoreCase("con"+sign)) {
+                    if (lines[0].equalsIgnoreCase(ChatColor.DARK_GREEN+"[conn]") && lines[1].equalsIgnoreCase(name)
+                            && lines[2].equalsIgnoreCase(""+sign)) {
                         Block nb = startblock.getRelative(i, 0, j);
                         if (type == -1) {
                             if (nb.getTypeId() == def) {
