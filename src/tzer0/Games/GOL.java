@@ -129,7 +129,6 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                         int actual = countCell(plugin.toInt(splitCmd[1]));
                         if (actual != count) {
                             pl.sendMessage(ChatColor.RED + String.format("You failed, target: %d, got %d", count, actual));
-                            clear(pl);
                             return;
                         } else {
                             pl.sendMessage(ChatColor.GREEN + String.format("You passed a test, you had %d of %s!", count, splitCmd[1]));

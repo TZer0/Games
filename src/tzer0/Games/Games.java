@@ -377,6 +377,7 @@ public class Games extends JavaPlugin {
                 } else {
                     store.board.info(pl);
                 }
+                return true;
             } else if (args[0].equalsIgnoreCase("selecttype") || args[0].equalsIgnoreCase("st")) {
                 if (l == 2) {
                     CellType tmp = board.findCell(toInt(args[1]));
@@ -390,12 +391,14 @@ public class Games extends JavaPlugin {
                 } else {
                     pl.sendMessage(ChatColor.RED + "Please provide material type.");
                 }
+                return true;
             } else if (args[0].equalsIgnoreCase("addtype") || args[0].equalsIgnoreCase("at")) {
                 if (l == 2) {
                     store.type = board.addCell(toInt(args[1]), pl);
                 } else {
                     pl.sendMessage(ChatColor.RED + "Please provide material type.");
                 }
+                return true;
             } else if (args[0].equalsIgnoreCase("deletetype") || args[0].equalsIgnoreCase("dt")) {
                 if (l == 2) {
                     if (store.type == ((GOL)store.board).findCell(toInt(args[1]))) {
@@ -406,6 +409,7 @@ public class Games extends JavaPlugin {
                         tmp.removeOther(toInt(args[1]), null);
                     }
                 }
+                return true;
             } else if (args[0].equalsIgnoreCase("winpos") || args[0].equalsIgnoreCase("wp")) {
                 if (l >= 2 && (args[1].equalsIgnoreCase("set") || args[1].equalsIgnoreCase("s"))) {
                     board.winpos = pl.getLocation().getBlock();
