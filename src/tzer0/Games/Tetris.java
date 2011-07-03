@@ -383,7 +383,7 @@ public class Tetris extends Board implements SignalReceiver {
 
     public void handleSignal(Sign sign, Player pl) {
         String input[] = sign.getLines();
-        String in[] = input[2].split("-");
+        String in[] = input[2].split(":");
         if (in.length != 0) {
             if (input[2].equalsIgnoreCase("start")) {
                 startGame(pl);

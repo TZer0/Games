@@ -104,11 +104,15 @@ public class GOL extends Board implements Interactable, SignalReceiver {
     }
 
     public void handleSignal(Sign sign, Player pl) {
+        executeSign(sign, pl, 2, 3);
+    }
+    
+    public void executeSign(Sign sign, Player pl, int fromLines, int toLines) {
         String signal[] = sign.getLines();
-        for (int line = 2; line < 4; line++) {
+        for (int line = fromLines; line < toLines+1; line++) {
             for (String cmd : signal[line].split(",")) {
                 if (!cmd.equalsIgnoreCase("")) {
-                    String[] splitCmd = cmd.split("-");
+                    String[] splitCmd = cmd.split(":");
                     int l = splitCmd.length;
                     if (splitCmd[0].equalsIgnoreCase("iterate") || splitCmd[0].equalsIgnoreCase("i")) {
                         int steps = 1;
@@ -131,16 +135,144 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                             pl.sendMessage(ChatColor.GREEN + String.format("You passed a test, you had %d of %s!", count, splitCmd[1]));
                         }
                     } else if (splitCmd[0].equalsIgnoreCase("win") || splitCmd[0].equalsIgnoreCase("w")) {
-                        winpos.setType(Material.REDSTONE_TORCH_ON);
+                        if (winpos != null) {
+                            winpos.setType(Material.REDSTONE_TORCH_ON);
+                        }
+                        pl.sendMessage(ChatColor.GREEN + "Congratulations! You win!");
                     } else if (splitCmd[0].equalsIgnoreCase("reset") || splitCmd[0].equalsIgnoreCase("r")) {
                         clear(pl);
-                        winpos.setType(Material.AIR);
+                        if (winpos != null) {
+                            winpos.setType(Material.AIR);
+                        }
+                        pl.sendMessage(ChatColor.GREEN + "Cleared.");
+                    } else if (splitCmd[0].equalsIgnoreCase("connected") || splitCmd[0].equalsIgnoreCase("cn")) {
+                        if (l != 3) {
+                            pl.sendMessage(ChatColor.RED + "Error in count - invalid arg-count (needs 1)");
+                            return;
+                        }
+                        String out = splitCmd[1];
+                        if (plugin.toInt(splitCmd[1]) == -1) {
+                            out = "*";
+                        }
+                        if (!checkIfConnected(plugin.toInt(splitCmd[1]), plugin.toInt(splitCmd[2]), pl)) {
+                            pl.sendMessage(ChatColor.RED + 
+                                    String.format("Failure! Connector %d was not connected using %s", plugin.toInt(splitCmd[2]), out));
+                            return;
+                        } else {
+                            pl.sendMessage(ChatColor.GREEN + 
+                                    String.format("Success! You connected %d using %s", plugin.toInt(splitCmd[2]), out));
+                        }
+                    } else if (splitCmd[0].equalsIgnoreCase("exec") || splitCmd[0].equalsIgnoreCase("e")) {
+                        if (l != 4) {
+                            pl.sendMessage(ChatColor.RED + "Error in count - invalid arg-count (needs 4)");
+                        }
+                        Block bl = sign.getBlock().getRelative(plugin.toInt(splitCmd[1]),
+                               plugin.toInt(splitCmd[2]), plugin.toInt(splitCmd[3]));
+                        if (bl.getType() == Material.SIGN_POST || bl.getType() == Material.WALL_SIGN) {
+                            Sign newSign = (Sign) bl.getState();
+                            if (newSign.getLine(0).equalsIgnoreCase(ChatColor.DARK_GREEN + "[cont]")) {
+                                executeSign(newSign, pl, 1, 3);
+                            } else {
+                                pl.sendMessage(ChatColor.RED + "First line must be " + ChatColor.DARK_GREEN + "[CONT]");
+                            }
+                        } else {
+                            pl.sendMessage(ChatColor.RED + "Target is not a sign!");
+                        }
                     }
                 }
             }
         }
     }
-    
+
+    public boolean checkIfConnected(int type, int sign, Player pl) {
+        Block pos1 = null, pos2 = null;
+        boolean done = false;
+        for (int i = 0; i < x && !done; i++) {
+            for (int j = 0; j < z; j++) {
+                Block bl = startblock.getRelative(i, 1, j);
+                if (bl.getType() == Material.SIGN_POST) {
+                    Sign s = (Sign) bl.getState();
+                    String[] lines = s.getLines();
+                    if (lines[0].equalsIgnoreCase(ChatColor.DARK_GREEN+"[gol]") && lines[1].equalsIgnoreCase(name)
+                            && lines[2].equalsIgnoreCase("con"+sign)) {
+                        Block nb = startblock.getRelative(i, 0, j);
+                        if (type == -1) {
+                            if (nb.getTypeId() == def) {
+                                return false;
+                            }
+                        } else {
+                            if (nb.getTypeId() != type) {
+                                return false;
+                            }
+                        }
+                        if (pos1 == null) {
+                            pos1 = nb;
+                        } else {
+                            pos2 = nb;
+                            done = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if (pos2 == null) {
+            pl.sendMessage(ChatColor.RED + "Could not find one or more connectors");
+            return false;
+        } else {
+            boolean [][]visited = new boolean[x][z];
+            for (int i = 0; i < x; i++) {
+                for (int j = 0; j < z; j++) {
+                    visited[i][j] = false;
+                }
+            }
+            return fastFill(pos1.getX()-startblock.getX(), pos1.getZ()-startblock.getZ(),
+                    pos2.getX()-startblock.getX(), pos2.getZ()-startblock.getZ(), 
+                    type, visited);
+        }
+    }
+
+    public boolean fastFill(int cx, int cz, int tx, int tz, int type, boolean [][]visited) {
+        if (cx < 0 || cx >= x || cz < 0 || cz >= z) {
+            return false;
+        } else {
+            if (visited[cx][cz]) {
+                return false;
+            } else if (cx == tx && cz == tz) {
+                return true;
+            } else {
+                visited[cx][cz] = true;
+                if (type == -1) {
+                    if (field[0][cx][cz] != def) {
+                        for (int i = 0; i < 4; i++) {
+                            if (fastFill(modX(cz, i), modZ(cz,i), tx, tz, type, visited)) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                } else {
+                    if (field[0][cx][cz] == type) {
+                        for (int i = 0; i < 4; i++) {
+                            if (fastFill(modX(cx, i), modZ(cz, i), tx, tz, type, visited)) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+            }
+        }
+    }
+
+    public int modX(int cx, int i) {
+        return cx + (i == 0 ? -1 : 0) + (i == 1 ? 1 : 0);
+    }
+
+    public int modZ(int cz, int i) {
+        return cz + (i == 2 ? -1 : 0) + (i == 3 ? 1 : 0);
+    }
+
     public int countCell(int type) {
         int sum = 0;
         for (int i = 0; i < x; i++) {
