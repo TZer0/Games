@@ -105,7 +105,7 @@ public class Tetris extends Board implements SignalReceiver {
             }
         }
     }
-    
+
     public void pullXDir(int l) {
         int i;
         for (i = l; (tdir == 2 ? i < x-1 : i > 1); i += (tdir == 2 ? 1 : -1)) {
@@ -123,7 +123,7 @@ public class Tetris extends Board implements SignalReceiver {
             }
         }
     }
-    
+
     public void pullZDir(int l) {
         int i;
         for (i = l; (tdir == 4 ? i < z-1 : i > 1); i += (tdir == 4 ? 1 : -1)) {
@@ -385,18 +385,26 @@ public class Tetris extends Board implements SignalReceiver {
         String input[] = sign.getLines();
         String in[] = input[2].split("-");
         if (in.length != 0) {
-            if (in[0].contains("r")) {
-                String rin[] = in[0].split("r");
-                if (rin.length != 0) {
-                    if (plugin.checkInt(rin[0])) {
-                        rotate(Integer.parseInt(rin[0]));
+            if (input[2].equalsIgnoreCase("start")) {
+                startGame(pl);
+            } else if (input[2].equalsIgnoreCase("stop")) {
+                stopGame(pl);
+            } else {
+                if (in[0].contains("r")) {
+                    String rin[] = in[0].split("r");
+                    if (rin.length != 0) {
+                        if (plugin.checkInt(rin[0])) {
+                            rotate(Integer.parseInt(rin[0]));
+                        }
                     }
+                } else if (plugin.checkInt(in[0])) {
+                    move(Integer.parseInt(in[0]));
+                } else if (input[2].equalsIgnoreCase("points")) {
+                    points = sign;
+                    updatePoints();
+                } else {
+                    pl.sendMessage(ChatColor.RED + "No such command!");
                 }
-            } else if (plugin.checkInt(in[0])) {
-                move(Integer.parseInt(in[0]));
-            } else if (input[2].equalsIgnoreCase("points")) {
-                points = sign;
-                updatePoints();
             }
         }
     }
@@ -407,7 +415,7 @@ public class Tetris extends Board implements SignalReceiver {
             points.update();
         }
     }
-    
+
     public void startGame(Player pl) {
         p = 0;
         updatePoints();

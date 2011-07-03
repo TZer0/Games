@@ -18,6 +18,7 @@ import org.bukkit.util.config.ConfigurationNode;
 public class GOL extends Board implements Interactable, SignalReceiver {
     int def;
     LinkedList<CellType> races;
+    Block winpos;
 
     public GOL(String name, World world, Location pos1, Location pos2,
             boolean imported, Games plugin, Configuration conf) {
@@ -26,6 +27,15 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         y = 1;
         races = new LinkedList<CellType>();
         if (imported) {
+            int wx, wy, wz;
+            wx = conf.getInt(pre + "wx", 0);
+            wy = conf.getInt(pre + "wy", -1);
+            wz = conf.getInt(pre + "wz", 0);
+            if (wy == -1) {
+                winpos = null;
+            } else {
+                winpos = world.getBlockAt(wx, wy, wz);
+            }
             Map<String, ConfigurationNode> types = conf.getNodes(pre + "types");
             this.def = conf.getInt(pre + "def", 20);
 
@@ -41,6 +51,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                 }
             }
         } else {
+            winpos = null;
             this.def = 20;
         }
         field = new int[y][x][z];
@@ -71,6 +82,15 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         super.save();
         conf.setProperty(pre + "def", def);
         conf.setProperty(pre + "type", type);
+        if (winpos != null) {
+            conf.setProperty(pre+"wx", winpos.getX());
+            conf.setProperty(pre+"wy", winpos.getY());
+            conf.setProperty(pre+"wz", winpos.getZ());
+        } else {
+            conf.removeProperty(pre+"wx");
+            conf.removeProperty(pre+"wy");
+            conf.removeProperty(pre+"wz");
+        }
         conf.save();
     }
 
@@ -85,16 +105,52 @@ public class GOL extends Board implements Interactable, SignalReceiver {
 
     public void handleSignal(Sign sign, Player pl) {
         String signal[] = sign.getLines();
-        String[] signals = signal[2].split("-");
-        int l = signals.length;
-        if (signals[0].equalsIgnoreCase("iterate")
-                || signals[0].equalsIgnoreCase("i")) {
-            int s = 1;
-            if (l == 2) {
-                s = plugin.toInt(signals[1]);
+        for (int line = 2; line < 4; line++) {
+            for (String cmd : signal[line].split(",")) {
+                if (!cmd.equalsIgnoreCase("")) {
+                    String[] splitCmd = cmd.split("-");
+                    int l = splitCmd.length;
+                    if (splitCmd[0].equalsIgnoreCase("iterate") || splitCmd[0].equalsIgnoreCase("i")) {
+                        int steps = 1;
+                        if (l == 2) {
+                            steps = plugin.toInt(splitCmd[1]);
+                        }
+                        iterate(pl, steps);
+                    } else if (splitCmd[0].equalsIgnoreCase("count") || splitCmd[0].equalsIgnoreCase("c")) {
+                        if (l != 3) {
+                            pl.sendMessage(ChatColor.RED + "Error in count - invalid arg-count (needs 3)");
+                            return;
+                        }
+                        int count = plugin.toInt(splitCmd[2]);
+                        int actual = countCell(plugin.toInt(splitCmd[1]));
+                        if (actual != count) {
+                            pl.sendMessage(ChatColor.RED + String.format("You failed, target: %d, got %d", count, actual));
+                            clear(pl);
+                            return;
+                        } else {
+                            pl.sendMessage(ChatColor.GREEN + String.format("You passed a test, you had %d of %s!", count, splitCmd[1]));
+                        }
+                    } else if (splitCmd[0].equalsIgnoreCase("win") || splitCmd[0].equalsIgnoreCase("w")) {
+                        winpos.setType(Material.REDSTONE_TORCH_ON);
+                    } else if (splitCmd[0].equalsIgnoreCase("reset") || splitCmd[0].equalsIgnoreCase("r")) {
+                        clear(pl);
+                        winpos.setType(Material.AIR);
+                    }
+                }
             }
-            iterate(pl, s);
         }
+    }
+    
+    public int countCell(int type) {
+        int sum = 0;
+        for (int i = 0; i < x; i++) {
+            for (int j = 0; j < z; j++) {
+                if (field[0][i][j] == type) {
+                    sum++;
+                }
+            }
+        }
+        return sum;
     }
 
     public void iterate(Player pl, int iter) {
@@ -119,22 +175,54 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                             field[0][i][j] = def;
                         }
                     }
-                    if (field[0][i][j] == def) {
-                        for (int t : calcmap.keySet()) {
-                            if (calcmap.get(t)[i][j]) {
-                                if (field[0][i][j] == def) {
-                                    field[0][i][j] = t;
-                                } else {
-                                    field[0][i][j] = def;
-                                    break;
-                                }
-                            }
-                        }
-                    }
+                    field[0][i][j] = contestField(i, j, field[0][i][j], calcmap);
                 }
             }
         }
         update();
+    }
+
+    public int contestField(int i, int j, int type, HashMap<Integer, boolean[][]> calcmap) {
+        boolean found = false;
+        if (type != def) {
+            for (int weak : findCell(type).weakness) {
+                if (calcmap.get(weak)[i][j]) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                return type;
+            }
+        }
+
+        LinkedList<Integer> contesters = new LinkedList<Integer>();
+        LinkedList<Integer> finalContesters = new LinkedList<Integer>();
+        for (CellType ty : races) {
+            if (calcmap.get(ty.material)[i][j]) {
+                contesters.add(ty.material);
+            }
+        }
+
+        for (int k : contesters) {
+            CellType temp = findCell(k);
+            found = false;
+            for (int l : contesters) {
+                if (temp.weakness.contains(l)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                finalContesters.add(k);
+            }
+        }
+        if (finalContesters.size() == 1) {
+            return finalContesters.get(0);
+        } else {
+            return def;
+        }
     }
 
     public void CircuitBoard(Block pos) {
@@ -217,6 +305,12 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         pl.sendMessage(ChatColor.GREEN + "Type: Game of Life");
         pl.sendMessage(ChatColor.GREEN
                 + String.format("Default-block (empty): %d", def));
+        if (winpos != null) {
+            pl.sendMessage(ChatColor.YELLOW + String.format("Winpos is set to (%d, %d, %d)", 
+                    winpos.getX(), winpos.getY(), winpos.getZ()));
+        } else {
+            pl.sendMessage(ChatColor.RED + "No winpos set.");
+        }
         if (races.size() != 0) {
             pl.sendMessage(ChatColor.GREEN + "Types on this board:");
             for (CellType tmp : races) {
@@ -310,26 +404,17 @@ public class GOL extends Board implements Interactable, SignalReceiver {
     public void interact(Block pos, Player pl) {
         modField(pos);
     }
-    
-    public boolean cyclicDetection() {
-        
-        return false;
-    }
-    
-    public boolean subcyclicDetection(CellType type) {
-        return false;
-    }
 
     class CellType {
         int creaMin, creaMax, survMin, survMax;
         int material;
         String savepre;
-        List<Integer> kills;
+        List<Integer> weakness;
 
         public CellType(int material) {
             this.material = material;
             savepre = pre + "types." + material + ".";
-            kills = conf.getIntList(savepre + "kills", null);
+            weakness = conf.getIntList(savepre + "kills", null);
             creaMin = 3;
             creaMax = 3;
             survMin = 1;
@@ -344,7 +429,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
             creaMax = conf.getInt(savepre + "cmax", 3);
             survMin = conf.getInt(savepre + "smin", 1);
             survMax = conf.getInt(savepre + "smax", 4);
-            kills = conf.getIntList(savepre + "kills", null);
+            weakness = conf.getIntList(savepre + "weakness", null);
             save();
         }
 
@@ -353,8 +438,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
             conf.setProperty(savepre + "cmax", creaMax);
             conf.setProperty(savepre + "smin", survMin);
             conf.setProperty(savepre + "smax", survMax);
-            conf.setProperty(savepre + "def", def);
-            conf.setProperty(savepre + "kills", kills);
+            conf.setProperty(savepre + "weakness", weakness);
             conf.save();
         }
 
@@ -372,7 +456,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         }
 
         public void removeOther(int i, Player pl) {
-            if (!kills.contains(i)) {
+            if (!weakness.contains(i)) {
                 if (pl != null) {
                     pl.sendMessage(ChatColor.RED + "No such cell-type in list.");
                 }
@@ -381,7 +465,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                     pl.sendMessage(ChatColor.GREEN + "Done.");
                     info(pl);
                 }
-                kills.remove(i);
+                weakness.remove(i);
                 save();
             }
         }
@@ -389,13 +473,12 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         public void addOther(int i, Player pl) {
             if (i == material) {
                 if (pl != null) {
-                    pl.sendMessage("Can't have priority over self.");
+                    pl.sendMessage("Can't have priority under self.");
                 }
             } else {
                 if (findCell(i) != null) {
-                    kills.add(i);
+                    weakness.add(i);
                     save();
-                    info(pl);
                 } else {
                     pl.sendMessage("No such type available");
                 }
@@ -409,15 +492,15 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                         + String.format(
                                 "Material: %d, cmin: %d, cmax: %d, smin: %d, smax: %d",
                                 material, creaMin, creaMax, survMin, survMax));
-                if (kills.size() != 0) {
+                if (weakness.size() != 0) {
                     String out = "";
-                    for (int i = 0; i < kills.size(); i++) {
+                    for (int i = 0; i < weakness.size(); i++) {
                         if (i != 0) {
                             out += ", ";
                         }
-                        out += kills.get(i);
+                        out += weakness.get(i);
                     }
-                    pl.sendMessage(ChatColor.YELLOW + String.format("Has priority over: %s", out));
+                    pl.sendMessage(ChatColor.YELLOW + String.format("Has priority under: %s", out));
                 }
             }
         }
