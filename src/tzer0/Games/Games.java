@@ -136,10 +136,15 @@ public class Games extends JavaPlugin {
     public boolean onCommand(CommandSender sender, Command cmd,
             String commandLabel, String[] args) {
         if (sender instanceof Player) {
+            Player pl = (Player) sender;
+            if ((permissions == null && !pl.isOp()) || 
+                    (permissions != null && !permissions.has(pl, "games.admin"))) {
+                pl.sendMessage(ChatColor.RED + "You do not have access to this command!");
+                return true;
+            }
             boolean help = false;
             boolean golHelp = false;
             boolean tetrisHelp = false;
-            Player pl = (Player) sender;
             PlayerStorage store = selected.get(pl);
             if (store == null) {
                 store = new PlayerStorage();
@@ -265,7 +270,7 @@ public class Games extends JavaPlugin {
                     sender.sendMessage(ChatColor.GREEN + "(a)dd(b)oard [gol/tetris] [name] - adds a new board");
                     sender.sendMessage(ChatColor.GREEN + "(d)elete(b)oard [name] - deletes a board");
                     sender.sendMessage(ChatColor.GREEN + "(s)elect(b)oard [name] - selects a board");
-                    sender.sendMessage(ChatColor.GREEN + "(l)ist(b)oard [name] - lists all boards");
+                    sender.sendMessage(ChatColor.GREEN + "(l)ist(b)oard [page] - lists boards");
                     sender.sendMessage(ChatColor.RED + "(b)oard(i)nfo - shows info about the board");
                     sender.sendMessage(ChatColor.GREEN + "(r)eload - reloads settings");
                     sender.sendMessage(ChatColor.GREEN + "/g gol for game of life-specific commands");
@@ -277,6 +282,7 @@ public class Games extends JavaPlugin {
                     sender.sendMessage(ChatColor.GREEN + "(a)dd(t)ype [id] - adds a type");
                     sender.sendMessage(ChatColor.GREEN + "(d)elete(t)ype [id] - removes a type");
                     sender.sendMessage(ChatColor.GREEN + "(s)elect(t)ype [id] - selects a type");
+                    sender.sendMessage(ChatColor.GREEN + "(d)efault [materialID] - sets a default cell-type");
                     sender.sendMessage(ChatColor.RED + "(m)od(t)ype [cmin/cmax/smin/smax/aw/dw] [v] - mods a type");
                     sender.sendMessage(ChatColor.RED + "(w)in(p)os {(s)et} - shows/sets redstone-torch placement after win.");
                 } else if (tetrisHelp) {
