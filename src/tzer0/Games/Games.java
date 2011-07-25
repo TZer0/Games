@@ -580,12 +580,10 @@ public class Games extends JavaPlugin {
         }
         return true;
     }
-
-    class PlayerStorage {
-        Location pos1, pos2;
-        Board board;
-        CellType type;
-        int mode;
+    private class PlayerStorage {
+        public Location pos1, pos2;
+        public Board board;
+        public CellType type;
         public PlayerStorage() {
             pos1 = pos2 = null;
             board = null;

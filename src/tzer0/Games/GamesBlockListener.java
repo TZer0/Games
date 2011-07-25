@@ -21,7 +21,7 @@ public class GamesBlockListener extends BlockListener {
     }
     public void onSignChange(SignChangeEvent event) {
         Player pl = event.getPlayer();
-        boolean access = plugin.permissions.has(pl, "games.admin");
+        boolean access = (plugin.permissions == null && pl.isOp()) || (plugin.permissions != null && plugin.permissions.has(pl, "games.admin"));
         boolean changed = false;
         String line = event.getLine(0);
         if (line.equalsIgnoreCase("[gol]")) {
