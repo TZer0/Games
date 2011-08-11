@@ -24,6 +24,8 @@ public class Board {
     int field[][][];
     
     public Board(String name, World world, Location pos1, Location pos2, boolean imported, Games plugin, Configuration conf) {
+        this.data = null;
+        this.field = null;
         this.conf = conf;
         this.plugin = plugin;
         pre = String.format("boards.%s.%s.", world.getName(), name);
@@ -36,8 +38,6 @@ public class Board {
             move(pos1, pos2);
         }
         this.name = name;
-        this.data = null;
-        this.field = null;
     }
 
     public void save() {
@@ -62,6 +62,13 @@ public class Board {
         z = Math.abs(zmax-zmin);
         y = Math.abs(ymax-ymin);
         startBlock = pos1.getWorld().getBlockAt(xmin, ymin, zmin);
+        if (this.field != null) {
+            this.field = new int[y][x][z];
+        }
+        if (this.data != null) {
+            this.data = new byte[y][x][z];
+        }
+        save();
     }
 
     public void shortInfo(Player pl) {

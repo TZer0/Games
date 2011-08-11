@@ -173,39 +173,29 @@ public class Games extends JavaPlugin {
                         }
                     }
                 } else if (args[0].equalsIgnoreCase("addboard") || args[0].equalsIgnoreCase("ab")) {
-                    if (store.pos1 == null || store.pos2 == null) {
-                        pl.sendMessage("Invalid position.");
-                        posInfo(store.pos1, "Node 1", pl);
-                        posInfo(store.pos2, "Node 2", pl);
-                        return true;
-                    } else if (store.pos1.getWorld() != store.pos2.getWorld()) {
-                        pl.sendMessage("Locations are in different worlds");
-                        posInfo(store.pos1, "Node 1", pl);
-                        posInfo(store.pos2, "Node 2", pl);
-                        return true;
-                    }
-                    if (l == 3) {
-                        if (findBoard(args[2]) == null) {
-                            store.board = null;
-                            if (args[1].equalsIgnoreCase("gol")) {
-                                store.board = new GOL(args[2], store.pos1.getWorld(), store.pos1, store.pos2, false, this, conf);
-                            } else if (args[1].equalsIgnoreCase("tetris")) {
-                                store.board = new Tetris(args[2], store.pos1.getWorld(), store.pos1, store.pos2, false, this, conf);
-                            }
-                            if (store.board != null) {
-                                boards.get(store.pos1.getWorld()).add(store.board);
-                                pl.sendMessage(ChatColor.GREEN+"New board created and selected.");
-                                store.type = null;
-                            } else {
-                                pl.sendMessage(ChatColor.RED + "Invalid board-type!");
-                            }
+                    if (checkNode(store, pl))
+                        if (l == 3) {
+                            if (findBoard(args[2]) == null) {
+                                store.board = null;
+                                if (args[1].equalsIgnoreCase("gol")) {
+                                    store.board = new GOL(args[2], store.pos1.getWorld(), store.pos1, store.pos2, false, this, conf);
+                                } else if (args[1].equalsIgnoreCase("tetris")) {
+                                    store.board = new Tetris(args[2], store.pos1.getWorld(), store.pos1, store.pos2, false, this, conf);
+                                }
+                                if (store.board != null) {
+                                    boards.get(store.pos1.getWorld()).add(store.board);
+                                    pl.sendMessage(ChatColor.GREEN+"New board created and selected.");
+                                    store.type = null;
+                                } else {
+                                    pl.sendMessage(ChatColor.RED + "Invalid board-type!");
+                                }
 
+                            } else {
+                                pl.sendMessage(ChatColor.RED+"Board with that name already exists!");
+                            }
                         } else {
-                            pl.sendMessage(ChatColor.RED+"Board with that name already exists!");
+                            pl.sendMessage("Please provide board-type and area-name.");
                         }
-                    } else {
-                        pl.sendMessage("Please provide board-type and area-name.");
-                    }
 
                 } else if (args[0].equalsIgnoreCase("deleteboard") || args[0].equalsIgnoreCase("db")) {
                     if (l == 2) {
@@ -246,7 +236,13 @@ public class Games extends JavaPlugin {
                         store.board.info(pl);
                     }
                 } else if (args[0].equalsIgnoreCase("savestate") || args[0].equalsIgnoreCase("ss")) {
-
+                } else if (args[0].equalsIgnoreCase("move") || args[0].equalsIgnoreCase("mv")) {
+                    if (checkBoard(store.board, pl)) {
+                        if (checkNode(store, pl)) {
+                            store.board.move(store.pos1, store.pos2);
+                            pl.sendMessage(ChatColor.GREEN + "Moved");
+                        }
+                    }
                 } else if (store.board instanceof GOL) {
                     if (!handleGOLParam((GOL)store.board, store.type, pl, args, false, store)) {
                         pl.sendMessage("No such command.");
@@ -273,6 +269,7 @@ public class Games extends JavaPlugin {
                     sender.sendMessage(ChatColor.GREEN + "(s)elect(b)oard [name] - selects a board");
                     sender.sendMessage(ChatColor.GREEN + "(l)ist(b)oard [page] - lists boards");
                     sender.sendMessage(ChatColor.RED + "(b)oard(i)nfo - shows info about the board");
+                    sender.sendMessage(ChatColor.RED + "(m)o(v)e - moves board to current nodes");
                     sender.sendMessage(ChatColor.GREEN + "(r)eload - reloads settings");
                     sender.sendMessage(ChatColor.GREEN + "/g gol for game of life-specific commands");
                     sender.sendMessage(ChatColor.GREEN + "/g tetris for tetris-specific commands");
@@ -524,6 +521,21 @@ public class Games extends JavaPlugin {
     }
 
     public boolean checkNode(PlayerStorage store, Player pl) {
+        boolean error = false;
+        if (store.pos1 == null || store.pos2 == null) {
+            pl.sendMessage("Invalid position.");
+            error = true;
+            return true;
+        } else if (store.pos1.getWorld() != store.pos2.getWorld()) {
+            pl.sendMessage("Locations are in different worlds");
+            error = true;
+            return true;
+        }
+        if (error) {
+            posInfo(store.pos1, "Node 1", pl);
+            posInfo(store.pos2, "Node 2", pl);
+            return false;
+        }
         return true;
     }
 

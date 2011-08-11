@@ -1,7 +1,6 @@
 package tzer0.Games;
 
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +19,8 @@ public class GOL extends Board implements Interactable, SignalReceiver {
     int def;
     LinkedList<CellType> races;
     Block winpos;
-
+    CodeExecutor ex;
+    
     public GOL(String name, World world, Location pos1, Location pos2,
             boolean imported, Games plugin, Configuration conf) {
         super(name, world, pos1, pos2, imported, plugin, conf);
@@ -105,22 +105,19 @@ public class GOL extends Board implements Interactable, SignalReceiver {
     }
 
     public void handleSignal(Sign sign, Player pl) {
-        try {
-            LinkedList<String> code = getCode(new LinkedList<Sign>(), sign, 2, pl);
-            executeCode(code, pl);
-        } catch (GOLIllegalIncludeException e) {
-            Block bl = e.sg.getBlock();
-            pl.sendMessage(ChatColor.RED + "You have a circular dependency.");
-            pl.sendMessage(ChatColor.RED + String.format("The sign at (%d,%d,%d) has been included in itself.",
-                    bl.getX(), bl.getY(), bl.getZ()));
-        } catch (GOLIllegalStateError e) {
+        if (ex != null) {
+            ex.interrupt();
         }
+        ex = new CodeExecutor(sign, pl);
+        ex.start();
     }    
 
-    public void executeCode(LinkedList<String> code, Player pl) {
+    public void executeCode(LinkedList<String> code, Player pl, CodeExecutor exec) {
         Storage storage = new Storage();
-        LinkedList<Integer> flow = new LinkedList<Integer>();
         for (int line = 0; line < code.size(); line++) {
+            if (exec.isInterrupted()) {
+                break;
+            }
             String cmd = code.get(line);
             if (!cmd.equalsIgnoreCase("")) {
                 String[] splitCmd = cmd.split(":");
@@ -143,18 +140,13 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                     if (storage.cifLevel > storage.ifLevel) {
                         storage.cifLevel = storage.ifLevel;
                     }
-                    if (storage.elLevel > storage.ifLevel) {
-                        storage.elLevel = storage.ifLevel;
+                } else if (splitCmd[0].equalsIgnoreCase("else") ||  splitCmd[0].equalsIgnoreCase("el")) {
+                    if (storage.ifLevel-1 == storage.cifLevel) {
+                        storage.cifLevel++;
+                    } else {
+                        storage.cifLevel--;
                     }
-                    if (storage.celLevel > storage.elLevel) {
-                        storage.celLevel = storage.elLevel;
-                    }
-                } else if (splitCmd[0].equalsIgnoreCase("else")) {
-                    storage.elLevel++;
-                    if (storage.ifLevel > storage.cifLevel) {
-                        storage.celLevel++;
-                    }
-                } else if (storage.cifLevel < storage.ifLevel && storage.celLevel < storage.elLevel) {
+                } else if (storage.cifLevel < storage.ifLevel) {
                     continue;
                 } else if (splitCmd[0].equalsIgnoreCase("i")) {
                     if (!checkParams(splitCmd, 1, 2, pl)) {
@@ -854,11 +846,41 @@ public class GOL extends Board implements Interactable, SignalReceiver {
 
     }
 
+    class CodeExecutor extends Thread {
+        Sign sign;
+        Player pl;
+        public CodeExecutor(Sign sign, Player pl) {
+            this.sign = sign;
+            this.pl = pl;
+        }
+        public void run() {
+            try {
+                LinkedList<String> code = getCode(new LinkedList<Sign>(), sign, 2, pl);
+                executeCode(code, pl, this);
+            } catch (GOLIllegalIncludeException e) {
+                Block bl = e.sg.getBlock();
+                pl.sendMessage(ChatColor.RED + "You have a circular dependency.");
+                pl.sendMessage(ChatColor.RED + String.format("The sign at (%d,%d,%d) has been included in itself.",
+                        bl.getX(), bl.getY(), bl.getZ()));
+            } catch (GOLIllegalStateError e) {
+            }
+        }
+    }
+
+    class FlowNode {
+        char type;
+        int line;
+        public FlowNode(char type, int line) {
+            this.type = type;
+            this.line = line;
+        }
+    }
+    
     class Storage {
         HashMap<String, Integer> var;
-        int ifLevel,  cifLevel, celLevel, elLevel;
+        int ifLevel,  cifLevel;
         public Storage() {
-            ifLevel = cifLevel = celLevel = elLevel = 0;
+            ifLevel = cifLevel = 0;
             var = new HashMap<String, Integer>();
         }
     }
