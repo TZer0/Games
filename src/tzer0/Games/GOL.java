@@ -113,12 +113,19 @@ public class GOL extends Board implements Interactable, SignalReceiver {
     }    
 
     public void executeCode(LinkedList<String> code, Player pl, CodeExecutor exec) {
+        int limit = 10000;
         Storage storage = new Storage();
+        LinkedList<FlowNode> wh = new LinkedList<FlowNode>();
         for (int line = 0; line < code.size(); line++) {
+            if (line > limit) {
+                pl.sendMessage(ChatColor.RED + "Iteration limit reached - terminating!");
+                return;
+            }
             if (exec.isInterrupted()) {
                 break;
             }
             String cmd = code.get(line);
+            pl.sendMessage(cmd);
             if (!cmd.equalsIgnoreCase("")) {
                 String[] splitCmd = cmd.split(":");
                 int l = splitCmd.length;
@@ -147,6 +154,50 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                         storage.cifLevel--;
                     }
                 } else if (storage.cifLevel < storage.ifLevel) {
+                    continue;
+                } else if (splitCmd[0].equalsIgnoreCase("wh") || splitCmd[0].equalsIgnoreCase("while")) {
+                    if (!checkParams(splitCmd, 2, 4, pl)) {
+                        return;
+                    }
+                    int res = performTest(storage, splitCmd, pl);
+                    pl.sendMessage(ChatColor.YELLOW + "" + res);
+                    if (res == -1) {
+                        return;
+                    } else if (res == 1) {
+                        boolean found = false;
+                        for (FlowNode tmp : wh) {
+                            if (tmp.line == line) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found) {
+                            continue;
+                        } else {
+                            wh.addFirst(new FlowNode(true, line));
+                        }
+                    } else if (res == 0) {
+                        boolean found = false;
+                        for (FlowNode tmp : wh) {
+                            if (tmp.line == line) {
+                                tmp.active = false;
+                                found = true;
+                                break;
+                            }
+                        }
+                        pl.sendMessage(ChatColor.BLUE + "" + found);
+                        if (!found) {
+                            wh.addFirst(new FlowNode(false, line));
+                        }
+                    }
+                } else if (splitCmd[0].equalsIgnoreCase("wend")) {
+                    FlowNode fn = wh.getFirst();
+                    if (fn.active) {
+                        line = fn.line-1;
+                    } else {
+                        wh.removeFirst();
+                    }
+                } else if (wh.size() != 0 && !wh.getFirst().active) {
                     continue;
                 } else if (splitCmd[0].equalsIgnoreCase("i")) {
                     if (!checkParams(splitCmd, 1, 2, pl)) {
@@ -262,16 +313,20 @@ public class GOL extends Board implements Interactable, SignalReceiver {
             }
         } else {
             try {
+                int v1 = getVarOrValue(storage, splitCmd[2], pl);
+                int v2 = getVarOrValue(storage, splitCmd[3], pl);
                 if (splitCmd[1].equalsIgnoreCase("==")) {
-                    return (getVarOrValue(storage, splitCmd[2], pl) == getVarOrValue(storage, splitCmd[3], pl) ? 1 : 0);
+                    return (v1 == v2 ? 1 : 0);
                 } else if (splitCmd[1].equalsIgnoreCase("<")) {
-                    return (getVarOrValue(storage, splitCmd[2], pl) < getVarOrValue(storage, splitCmd[3], pl) ? 1 : 0);
+                    return (v1 < v2 ? 1 : 0);
                 } else if (splitCmd[1].equalsIgnoreCase(">")) {
-                    return (getVarOrValue(storage, splitCmd[2], pl) > getVarOrValue(storage, splitCmd[3], pl) ? 1 : 0);
+                    return (v1 > v2 ? 1 : 0);
                 } else if (splitCmd[1].equalsIgnoreCase("<=")) {
-                    return (getVarOrValue(storage, splitCmd[2], pl) <= getVarOrValue(storage, splitCmd[3], pl) ? 1 : 0);
+                    return (v1 <= v2 ? 1 : 0);
                 } else if (splitCmd[1].equalsIgnoreCase(">=")) {
-                    return (getVarOrValue(storage, splitCmd[2], pl) >= getVarOrValue(storage, splitCmd[3], pl) ? 1 : 0);
+                    return (v1 >= v2 ? 1 : 0);
+                } else if (splitCmd[1].equalsIgnoreCase("!=")) {
+                    return (v1 != v2 ? 1 : 0);
                 } else {
                     pl.sendMessage(ChatColor.RED + "No such test");
                     return -1;
@@ -868,10 +923,10 @@ public class GOL extends Board implements Interactable, SignalReceiver {
     }
 
     class FlowNode {
-        char type;
+        boolean active;
         int line;
-        public FlowNode(char type, int line) {
-            this.type = type;
+        public FlowNode(boolean active, int line) {
+            this.active = active;
             this.line = line;
         }
     }
