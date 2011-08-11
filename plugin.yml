@@ -1,6 +1,6 @@
 name: Games
 main: tzer0.Games.Games
-version: 0.1.1
+version: 0.2
 author: TZer0
 commands:
     games:

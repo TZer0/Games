@@ -14,7 +14,7 @@ import org.bukkit.util.config.Configuration;
 public class Board {
     int x, z, y;
     Games plugin;
-    Block startblock;
+    Block startBlock;
 
     Configuration conf;
     String pre;
@@ -31,7 +31,7 @@ public class Board {
             this.x = conf.getInt(pre+"x", 0);
             this.z = conf.getInt(pre+"z", 0);
             this.y = conf.getInt(pre+"y", -1);
-            startblock = world.getBlockAt(conf.getInt(pre+"sx",-1), conf.getInt(pre+"sy",-1), conf.getInt(pre+"sz",-1));
+            startBlock = world.getBlockAt(conf.getInt(pre+"sx",-1), conf.getInt(pre+"sy",-1), conf.getInt(pre+"sz",-1));
         } else {
             move(pos1, pos2);
         }
@@ -44,9 +44,9 @@ public class Board {
         conf.setProperty(pre+"x", x);
         conf.setProperty(pre+"z", z);
         conf.setProperty(pre+"y", y);
-        conf.setProperty(pre+"sx", startblock.getX());
-        conf.setProperty(pre+"sy", startblock.getY());
-        conf.setProperty(pre+"sz", startblock.getZ());
+        conf.setProperty(pre+"sx", startBlock.getX());
+        conf.setProperty(pre+"sy", startBlock.getY());
+        conf.setProperty(pre+"sz", startBlock.getZ());
         conf.save();
     }
     
@@ -61,17 +61,17 @@ public class Board {
         x = Math.abs(xmax-xmin);
         z = Math.abs(zmax-zmin);
         y = Math.abs(ymax-ymin);
-        startblock = pos1.getWorld().getBlockAt(xmin, ymin, zmin);
+        startBlock = pos1.getWorld().getBlockAt(xmin, ymin, zmin);
     }
 
     public void shortInfo(Player pl) {
-        pl.sendMessage(ChatColor.YELLOW + String.format("%s - %s - %s", name, type, startblock.getWorld().getName()));
+        pl.sendMessage(ChatColor.YELLOW + String.format("%s - %s - %s", name, type, startBlock.getWorld().getName()));
     }
     
     public void info(Player pl) {
         pl.sendMessage(ChatColor.GREEN + String.format("Name: %s", name));
-        pl.sendMessage(ChatColor.GREEN + String.format("Location: %d-%d,%d-%d,%d-%d", startblock.getX(), 
-                startblock.getX()+x, startblock.getY(), startblock.getY()+y, startblock.getZ(), startblock.getZ()+z));
+        pl.sendMessage(ChatColor.GREEN + String.format("Location: %d-%d,%d-%d,%d-%d", startBlock.getX(), 
+                startBlock.getX()+x, startBlock.getY(), startBlock.getY()+y, startBlock.getZ(), startBlock.getZ()+z));
     }
     
     public void initEmpty() {
@@ -94,12 +94,20 @@ public class Board {
         for (int k = 0; k < y; k++) {
             for (int i = 0; i < x; i++) {
                 for (int j = 0; j < z; j++) {
-                    startblock.getRelative(i, k, j).setTypeId(field[k][i][j]);
+                    startBlock.getRelative(i, k, j).setTypeId(field[k][i][j]);
                     if (data != null) {
-                        startblock.getRelative(i, k, j).setData((byte) data[k][i][j]);
+                        startBlock.getRelative(i, k, j).setData((byte) data[k][i][j]);
                     }
                 }
             }
         }
+    }
+    
+    public boolean outOfBounds(Block bl) {
+        return outOfBounds(bl.getY(), bl.getX(), bl.getZ());
+    }
+    
+    public boolean outOfBounds(int cy, int cx, int cz) {
+        return (cy < 0 || cx < 0 || cz < 0 || cx >= x || cy >= y || cz >= z);
     }
 }

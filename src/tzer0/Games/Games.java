@@ -93,6 +93,7 @@ public class Games extends JavaPlugin {
         invalid.add(Material.TRAP_DOOR.getId());
         invalid.add(Material.SNOW_BLOCK.getId());
         invalid.add(Material.ICE.getId());
+        invalid.add(Material.RAILS.getId());
         conf = getConfiguration();
         reload();
         pdfFile = this.getDescription();
@@ -210,8 +211,8 @@ public class Games extends JavaPlugin {
                     if (l == 2) {
                         Board tmp = findBoard(args[1]);
                         if (tmp != null) {
-                            boards.get(tmp.startblock.getWorld()).remove(tmp);
-                            conf.removeProperty(String.format("boards.%s.%s",tmp.startblock.getWorld().getName(), tmp.name));
+                            boards.get(tmp.startBlock.getWorld()).remove(tmp);
+                            conf.removeProperty(String.format("boards.%s.%s",tmp.startBlock.getWorld().getName(), tmp.name));
                             conf.save();
                             pl.sendMessage(ChatColor.GREEN + "Removed board.");
                         } else {

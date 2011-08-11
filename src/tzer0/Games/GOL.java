@@ -1,6 +1,7 @@
 package tzer0.Games;
 
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -58,7 +59,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         for (int i = 0; i < x; i++) {
             for (int j = 0; j < z; j++) {
                 if (imported) {
-                    field[0][i][j] = startblock.getRelative(i, 0, j)
+                    field[0][i][j] = startBlock.getRelative(i, 0, j)
                     .getTypeId();
                     boolean found = false;
                     for (CellType type : races) {
@@ -104,85 +105,279 @@ public class GOL extends Board implements Interactable, SignalReceiver {
     }
 
     public void handleSignal(Sign sign, Player pl) {
-        executeSign(sign, pl, 2, 3);
-    }
-    
-    public void executeSign(Sign sign, Player pl, int fromLines, int toLines) {
-        String signal[] = sign.getLines();
-        for (int line = fromLines; line < toLines+1; line++) {
-            for (String cmd : signal[line].split(",")) {
-                if (!cmd.equalsIgnoreCase("")) {
-                    String[] splitCmd = cmd.split(":");
-                    int l = splitCmd.length;
-                    if (splitCmd[0].equalsIgnoreCase("iterate") || splitCmd[0].equalsIgnoreCase("i")) {
-                        int steps = 1;
-                        if (l == 2) {
-                            steps = plugin.toInt(splitCmd[1]);
-                        }
-                        iterate(pl, steps);
-                    } else if (splitCmd[0].equalsIgnoreCase("count") || splitCmd[0].equalsIgnoreCase("c")) {
-                        if (l != 3) {
-                            pl.sendMessage(ChatColor.RED + "Error in count - invalid arg-count (needs 3)");
-                            return;
-                        }
-                        int count = plugin.toInt(splitCmd[2]);
-                        int actual = countCell(plugin.toInt(splitCmd[1]));
-                        if (actual != count) {
-                            pl.sendMessage(ChatColor.RED + String.format("You failed, target: %d, got %d", count, actual));
-                            return;
-                        } else {
-                            pl.sendMessage(ChatColor.GREEN + String.format("You passed a test, you had %d of %s!", count, splitCmd[1]));
-                        }
-                    } else if (splitCmd[0].equalsIgnoreCase("win") || splitCmd[0].equalsIgnoreCase("w")) {
-                        if (winpos != null) {
-                            winpos.setType(Material.REDSTONE_TORCH_ON);
-                        }
-                        pl.sendMessage(ChatColor.GREEN + "Congratulations! You win!");
-                    } else if (splitCmd[0].equalsIgnoreCase("reset") || splitCmd[0].equalsIgnoreCase("r")) {
-                        clear(pl);
-                        if (winpos != null) {
-                            winpos.setType(Material.AIR);
-                        }
-                        pl.sendMessage(ChatColor.GREEN + "Cleared.");
-                    } else if (splitCmd[0].equalsIgnoreCase("connected") || splitCmd[0].equalsIgnoreCase("cn")) {
-                        if (l != 3) {
-                            pl.sendMessage(ChatColor.RED + "Error in count - invalid arg-count (needs 1)");
-                            return;
-                        }
-                        String out = splitCmd[1];
-                        if (plugin.toInt(splitCmd[1]) == -1) {
-                            out = "*";
-                        }
-                        if (!checkIfConnected(plugin.toInt(splitCmd[1]), plugin.toInt(splitCmd[2]), pl)) {
-                            pl.sendMessage(ChatColor.RED + 
-                                    String.format("Failure! Connector %d was not connected using %s", plugin.toInt(splitCmd[2]), out));
-                            return;
-                        } else {
-                            pl.sendMessage(ChatColor.GREEN + 
-                                    String.format("Success! You connected %d using %s", plugin.toInt(splitCmd[2]), out));
-                        }
-                    } else if (splitCmd[0].equalsIgnoreCase("exec") || splitCmd[0].equalsIgnoreCase("e")) {
-                        if (l != 4) {
-                            pl.sendMessage(ChatColor.RED + "Error in count - invalid arg-count (needs 4)");
-                        }
-                        Block bl = sign.getBlock().getRelative(plugin.toInt(splitCmd[1]),
-                               plugin.toInt(splitCmd[2]), plugin.toInt(splitCmd[3]));
-                        if (bl.getType() == Material.SIGN_POST || bl.getType() == Material.WALL_SIGN) {
-                            Sign newSign = (Sign) bl.getState();
-                            if (newSign.getLine(0).equalsIgnoreCase(ChatColor.DARK_GREEN + "[exp]")) {
-                                executeSign(newSign, pl, 1, 3);
-                            } else {
-                                pl.sendMessage(ChatColor.RED + "First line must be " + ChatColor.DARK_GREEN + "[EXP]");
-                            }
-                        } else {
-                            pl.sendMessage(ChatColor.RED + "Target is not a sign!");
-                        }
-                    } else {
-                        pl.sendMessage(ChatColor.RED + "No such command - " + cmd);
+        try {
+            LinkedList<String> code = getCode(new LinkedList<Sign>(), sign, 2, pl);
+            executeCode(code, pl);
+        } catch (GOLIllegalIncludeException e) {
+            Block bl = e.sg.getBlock();
+            pl.sendMessage(ChatColor.RED + "You have a circular dependency.");
+            pl.sendMessage(ChatColor.RED + String.format("The sign at (%d,%d,%d) has been included in itself.",
+                    bl.getX(), bl.getY(), bl.getZ()));
+        } catch (GOLIllegalStateError e) {
+        }
+    }    
+
+    public void executeCode(LinkedList<String> code, Player pl) {
+        Storage storage = new Storage();
+        LinkedList<Integer> flow = new LinkedList<Integer>();
+        for (int line = 0; line < code.size(); line++) {
+            String cmd = code.get(line);
+            if (!cmd.equalsIgnoreCase("")) {
+                String[] splitCmd = cmd.split(":");
+                int l = splitCmd.length;
+                if (splitCmd[0].equalsIgnoreCase("if")) {
+                    if (!checkParams(splitCmd, 2, 4, pl)) {
+                        return;
                     }
+                    int res = performTest(storage, splitCmd, pl);
+                    if (res == 1) {
+                        storage.cifLevel++;
+                    } else if (res == -1) {
+                        return;
+                    } else if (res == 0) {
+                    }
+                    storage.ifLevel++;
+
+                } else if (splitCmd[0].equalsIgnoreCase("end")) {
+                    storage.ifLevel--;
+                    if (storage.cifLevel > storage.ifLevel) {
+                        storage.cifLevel = storage.ifLevel;
+                    }
+                    if (storage.elLevel > storage.ifLevel) {
+                        storage.elLevel = storage.ifLevel;
+                    }
+                    if (storage.celLevel > storage.elLevel) {
+                        storage.celLevel = storage.elLevel;
+                    }
+                } else if (splitCmd[0].equalsIgnoreCase("else")) {
+                    storage.elLevel++;
+                    if (storage.ifLevel > storage.cifLevel) {
+                        storage.celLevel++;
+                    }
+                } else if (storage.cifLevel < storage.ifLevel && storage.celLevel < storage.elLevel) {
+                    continue;
+                } else if (splitCmd[0].equalsIgnoreCase("i")) {
+                    if (!checkParams(splitCmd, 1, 2, pl)) {
+                        return;
+                    }
+                    int steps = 1;
+                    if (l == 2) {
+                        steps = plugin.toInt(splitCmd[1]);
+                    }
+                    iterate(pl, steps);
+                } else if (splitCmd[0].equalsIgnoreCase("win") || splitCmd[0].equalsIgnoreCase("w")) {
+                    if (!checkParams(splitCmd, 1, pl)) {
+                        return;
+                    }
+                    if (winpos != null) {
+                        winpos.setType(Material.REDSTONE_TORCH_ON);
+                    }
+                    pl.sendMessage(ChatColor.GREEN + "Congratulations! You win!");
+                } else if (splitCmd[0].equalsIgnoreCase("reset") || splitCmd[0].equalsIgnoreCase("r")) {
+                    if (!checkParams(splitCmd, 1, pl)) {
+                        return;
+                    }
+                    clear(pl);
+                    if (winpos != null) {
+                        winpos.setType(Material.AIR);
+                    }
+                    pl.sendMessage(ChatColor.GREEN + "Cleared.");
+                } else if (splitCmd[0].equalsIgnoreCase("s")) {
+                    if (!checkParams(splitCmd, 3, pl)) {
+                        return;
+                    }
+                    try {
+                        storage.var.put(splitCmd[1], Integer.parseInt(splitCmd[2]));
+                    } catch (NumberFormatException e) {
+                        pl.sendMessage(ChatColor.RED + 
+                                String.format("Invalid assignment, %s is not integer.", 
+                                        splitCmd[2]));
+                        return;
+                    }
+                } else if (splitCmd[0].equalsIgnoreCase("g")) {
+                    if (!checkParams(splitCmd, 2, pl)) {
+                        return;
+                    }
+                    Integer val = storage.var.get(splitCmd[1]);
+                    if (val != null) {
+                        pl.sendMessage(ChatColor.YELLOW + String.format("%s is %d", splitCmd[1], val));
+                    } else {
+                        pl.sendMessage(ChatColor.YELLOW + String.format("%s is not set!"));
+                    }
+                } else if (splitCmd[0].equalsIgnoreCase("+")) {
+                    if (!checkParams(splitCmd, 3, pl)) {
+                        return;
+                    }
+                    if (!modValue(storage, splitCmd, pl, true)) {
+                        return;
+                    }
+                } else if (splitCmd[0].equalsIgnoreCase("-")) {
+                    if (!checkParams(splitCmd, 3, pl)) {
+                        return;
+                    }
+                    if (!modValue(storage, splitCmd, pl, false)) {
+                        return;
+                    }
+                } else if (splitCmd[0].equalsIgnoreCase("t")) {
+                    pl.sendMessage(ChatColor.RED + "Reached t, terinating.");
+                } else {
+                    pl.sendMessage(ChatColor.RED + "No such command - " + cmd);
                 }
             }
         }
+        pl.sendMessage(ChatColor.GREEN + "Done.");
+    }
+
+    public int performTest(Storage storage, String[] splitCmd, Player pl) {
+        if (splitCmd[1].equalsIgnoreCase("cn")) {
+            if (!checkParams(splitCmd, 4, pl)) {
+                return -1;
+            }
+            String out = splitCmd[2];
+            if (plugin.toInt(splitCmd[2]) == -1) {
+                out = "*";
+            }
+            if (!checkIfConnected(plugin.toInt(splitCmd[2]), plugin.toInt(splitCmd[3]), pl)) {
+                pl.sendMessage(ChatColor.RED + 
+                        String.format("Failure! Connector %d was not connected using %s", plugin.toInt(splitCmd[3]), out));
+                return 0;
+            } else {
+                pl.sendMessage(ChatColor.GREEN + 
+                        String.format("Success! You connected %d using %s", plugin.toInt(splitCmd[3]), out));
+                storage.cifLevel++;
+                return 1;
+            }
+        } else if (splitCmd[1].equalsIgnoreCase("c")) {
+            if (!checkParams(splitCmd, 4, pl)) {
+                return -1;
+            }
+            int count = 0;
+            int actual = 0;
+            try {
+                count = Integer.parseInt(splitCmd[3]);
+                actual = countCell(Integer.parseInt(splitCmd[2]));
+            } catch (NumberFormatException e) {
+                pl.sendMessage(ChatColor.RED + String.format("%s or is not an integer", splitCmd[2], splitCmd[3]));
+                return -1;
+            }
+            if (actual != count) {
+                pl.sendMessage(ChatColor.RED + String.format("You failed, target: %d, got %d", count, actual));
+                return 0;
+            } else {
+                pl.sendMessage(ChatColor.GREEN + String.format("You passed a test, you had %d of %s!", count, splitCmd[2]));
+                storage.cifLevel++;
+                return 1;
+            }
+        } else {
+            try {
+                if (splitCmd[1].equalsIgnoreCase("==")) {
+                    return (getVarOrValue(storage, splitCmd[2], pl) == getVarOrValue(storage, splitCmd[3], pl) ? 1 : 0);
+                } else if (splitCmd[1].equalsIgnoreCase("<")) {
+                    return (getVarOrValue(storage, splitCmd[2], pl) < getVarOrValue(storage, splitCmd[3], pl) ? 1 : 0);
+                } else if (splitCmd[1].equalsIgnoreCase(">")) {
+                    return (getVarOrValue(storage, splitCmd[2], pl) > getVarOrValue(storage, splitCmd[3], pl) ? 1 : 0);
+                } else if (splitCmd[1].equalsIgnoreCase("<=")) {
+                    return (getVarOrValue(storage, splitCmd[2], pl) <= getVarOrValue(storage, splitCmd[3], pl) ? 1 : 0);
+                } else if (splitCmd[1].equalsIgnoreCase(">=")) {
+                    return (getVarOrValue(storage, splitCmd[2], pl) >= getVarOrValue(storage, splitCmd[3], pl) ? 1 : 0);
+                } else {
+                    pl.sendMessage(ChatColor.RED + "No such test");
+                    return -1;
+                }
+            } catch (GOLIllegalStateError e) {
+                pl.sendMessage(ChatColor.RED + 
+                        String.format("No such variable or invalid integer: %s and/or %s",
+                                splitCmd[2], splitCmd[3]));
+                return -1;
+            }
+        }
+    }
+
+    public boolean modValue(Storage storage, String[] splitCmd, Player pl, boolean action) {
+        Integer i = storage.var.get(splitCmd[1]);
+        if (i == null) {
+            pl.sendMessage(ChatColor.RED + "No such variable.");
+            return false;
+        }
+        try {
+            int mod = Integer.parseInt(splitCmd[2]);
+            storage.var.put(splitCmd[1], i + (action ? mod : -mod));
+        } catch (NumberFormatException e) {
+            pl.sendMessage(ChatColor.RED + String.format("%s is not an integer!", splitCmd[1]));
+            return false;
+        }
+        return true;
+    }
+
+    public int getVarOrValue(Storage storage, String target, Player pl) throws GOLIllegalStateError {
+        Integer out;
+        try {
+            out = Integer.parseInt(target);
+            return out;
+        } catch (NumberFormatException e) {
+            out = storage.var.get(target);
+            if (out == null) {
+                throw new GOLIllegalStateError();
+            }
+            return out;
+        }
+    }
+
+    public boolean checkParams(String[] splitCmd, int num, Player pl) {
+        boolean ret = splitCmd.length == num;
+        if (!ret) {
+            pl.sendMessage(ChatColor.RED + String.format("Error in count for %s, requires %d, got %d!", 
+                    splitCmd[0], num, splitCmd.length));
+        }
+        return ret;
+    }
+    public boolean checkParams(String[] splitCmd, int fnum, int tnum, Player pl) {
+        boolean ret = splitCmd.length <= tnum && splitCmd.length >= fnum;
+        if (!ret) {
+            pl.sendMessage(ChatColor.RED + String.format("Error in count for %s, requires between %d and %d, got %d!", 
+                    splitCmd[0], fnum, tnum, splitCmd.length));
+        }
+        return ret;
+    }
+    public LinkedList<String> getCode(LinkedList<Sign> included, Sign current, int from, Player pl) throws GOLIllegalIncludeException, GOLIllegalStateError {
+        if (included.contains(current)) {
+            throw new GOLIllegalIncludeException(current);
+        }
+        included.push(current);
+        String lines[] = current.getLines();
+        LinkedList<String> out = new LinkedList<String>();
+        for (int i = from; i < 4; i++) {
+            for (String cmd : lines[i].split(",")) {
+                if (cmd.contains("e:") || cmd.contains("exec:")) {
+                    String splitCmd[] = cmd.split(":");
+                    if (splitCmd.length != 4) {
+                        pl.sendMessage(ChatColor.RED + "Error in count - invalid arg-count (needs 4)");
+                        throw new GOLIllegalStateError();
+                    }
+                    Block bl = current.getBlock().getRelative(plugin.toInt(splitCmd[1]),
+                            plugin.toInt(splitCmd[2]), plugin.toInt(splitCmd[3]));
+                    if (bl.getType() == Material.SIGN_POST || bl.getType() == Material.WALL_SIGN) {
+                        Sign newSign = (Sign) bl.getState();
+                        if (newSign.getLine(0).equalsIgnoreCase(ChatColor.DARK_GREEN + "[exp]")) {
+                            for (String tcmd : getCode(included, newSign, 1, pl)) {
+                                out.addLast(tcmd);
+                            }
+                            included.remove(newSign);
+                        } else {
+                            pl.sendMessage(ChatColor.RED + "First line must be " + ChatColor.DARK_GREEN + "[EXP]");
+                            throw new GOLIllegalStateError();
+                        }
+                    } else {
+                        pl.sendMessage(ChatColor.RED + "Target is not a sign!");
+                        throw new GOLIllegalStateError();
+                    }
+                } else {
+                    out.addLast(cmd);
+                }
+            }
+        }
+
+        return out;
     }
 
     public boolean checkIfConnected(int type, int sign, Player pl) {
@@ -190,13 +385,13 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         boolean done = false;
         for (int i = 0; i < x && !done; i++) {
             for (int j = 0; j < z; j++) {
-                Block bl = startblock.getRelative(i, 1, j);
+                Block bl = startBlock.getRelative(i, 1, j);
                 if (bl.getType() == Material.SIGN_POST) {
                     Sign s = (Sign) bl.getState();
                     String[] lines = s.getLines();
                     if (lines[0].equalsIgnoreCase(ChatColor.DARK_GREEN+"[conn]") && lines[1].equalsIgnoreCase(name)
                             && lines[2].equalsIgnoreCase(""+sign)) {
-                        Block nb = startblock.getRelative(i, 0, j);
+                        Block nb = startBlock.getRelative(i, 0, j);
                         if (type == -1) {
                             if (nb.getTypeId() == def) {
                                 return false;
@@ -227,8 +422,8 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                     visited[i][j] = false;
                 }
             }
-            return fastFill(pos1.getX()-startblock.getX(), pos1.getZ()-startblock.getZ(),
-                    pos2.getX()-startblock.getX(), pos2.getZ()-startblock.getZ(), 
+            return fastFill(pos1.getX()-startBlock.getX(), pos1.getZ()-startBlock.getZ(),
+                    pos2.getX()-startBlock.getX(), pos2.getZ()-startBlock.getZ(), 
                     type, visited);
         }
     }
@@ -407,8 +602,8 @@ public class GOL extends Board implements Interactable, SignalReceiver {
     }
 
     public void modField(Block pos) {
-        int cx = pos.getX() - startblock.getX();
-        int cz = pos.getZ() - startblock.getZ();
+        int cx = pos.getX() - startBlock.getX();
+        int cz = pos.getZ() - startBlock.getZ();
         nextType(cx, cz);
         update();
     }
@@ -522,13 +717,13 @@ public class GOL extends Board implements Interactable, SignalReceiver {
     }
 
     public boolean isInBoard(Block pos) {
-        if ((pos.getY() == startblock.getY()
-                || pos.getY() == startblock.getY() + 1 || pos.getY() == startblock
+        if ((pos.getY() == startBlock.getY()
+                || pos.getY() == startBlock.getY() + 1 || pos.getY() == startBlock
                 .getY() - 1)
-                && pos.getX() >= startblock.getX()
-                && pos.getX() < (startblock.getX() + x)
-                && pos.getZ() >= startblock.getZ()
-                && pos.getZ() < (startblock.getZ() + z)) {
+                && pos.getX() >= startBlock.getX()
+                && pos.getX() < (startBlock.getX() + x)
+                && pos.getZ() >= startBlock.getZ()
+                && pos.getZ() < (startBlock.getZ() + z)) {
             return true;
         }
         return false;
@@ -636,6 +831,35 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                     pl.sendMessage(ChatColor.YELLOW + String.format("Has priority under: %s", out));
                 }
             }
+        }
+    }
+
+    class GOLIllegalIncludeException extends Exception {
+        Sign sg;
+        public GOLIllegalIncludeException(Sign sg) {
+            this.sg = sg;
+        }
+        /**
+         * 
+         */
+        private static final long serialVersionUID = 7692458386475734831L;
+    }
+
+    class GOLIllegalStateError extends Exception {
+
+        /**
+         * 
+         */
+        private static final long serialVersionUID = -8737217633680412889L;
+
+    }
+
+    class Storage {
+        HashMap<String, Integer> var;
+        int ifLevel,  cifLevel, celLevel, elLevel;
+        public Storage() {
+            ifLevel = cifLevel = celLevel = elLevel = 0;
+            var = new HashMap<String, Integer>();
         }
     }
 }

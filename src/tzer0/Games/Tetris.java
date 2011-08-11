@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 import org.bukkit.util.config.Configuration;
@@ -16,8 +17,9 @@ public class Tetris extends Board implements SignalReceiver {
     boolean running;
     int gr;
     int p;
+    final String[] directions = {"down", "up", "left", "right", "in", "out"};
     Sign points;
-    LinkedList<FallingBrick> falling;
+    LinkedList<FallingBrick> falling; 
     public Tetris(String name, World world, Location pos1, Location pos2,
             boolean imported, Games plugin, Configuration conf) {
         super(name, world, pos1, pos2, imported, plugin, conf);
@@ -281,9 +283,6 @@ public class Tetris extends Board implements SignalReceiver {
         return (field[cy][cx][cz] != 0);
     }
 
-    public boolean outOfBounds(int cy, int cx, int cz) {
-        return (cy < 0 || cx < 0 || cz < 0 || cx >= x || cy >= y || cz >= z);
-    }
     public void pull(int dir) {
         for (FallingBrick f : falling) {
             this.field[f.y][f.x][f.z] = 0;
@@ -350,8 +349,7 @@ public class Tetris extends Board implements SignalReceiver {
         ny = (dir == 0 ? -x : 0) + (dir == 1 ?  x : 0) +  (dir == 2 ? -z : 0) + (dir == 3 ?  z : 0) + ((dir == 4 || dir == 5) ? p1.y - p2.y : 0);
         nx = (dir == 0 ?  y : 0) + (dir == 1 ? -y : 0) + ((dir == 2 || dir == 3) ? p1.x - p2.x : 0) + (dir == 4 ? -z : 0) + (dir == 5 ?  z : 0);
         nz = ((dir == 0 || dir == 1) ? p1.z - p2.z : 0) + (dir == 2 ?  y : 0) + (dir == 3 ? -y : 0) + (dir == 4 ?  x : 0) + (dir == 5 ? -x : 0);
-        FallingBrick out = new FallingBrick(p2.y+ny, p2.x+nx, p2.z+nz, p2.data);
-        return out;
+        return new FallingBrick(p2.y+ny, p2.x+nx, p2.z+nz, p2.data);
     }
 
     public boolean checkFalling(LinkedList<FallingBrick> bricks) {
@@ -390,11 +388,14 @@ public class Tetris extends Board implements SignalReceiver {
             } else if (input[2].equalsIgnoreCase("stop")) {
                 stopGame(pl);
             } else {
-                if (in[0].contains("r")) {
-                    String rin[] = in[0].split("r");
+                if (in[0].contains("rot")) {
+                    String rin[] = in[0].split("rot");
                     if (rin.length != 0) {
-                        if (plugin.checkInt(rin[0])) {
-                            rotate(Integer.parseInt(rin[0]));
+                        int dir = getRotDirection(rin[1], sign.getBlock());
+                        if (dir >= 0) {
+                            rotate(dir);
+                        } else {
+                            pl.sendMessage(ChatColor.RED + "Invalid direction.");
                         }
                     }
                 } else if (plugin.checkInt(in[0])) {
@@ -403,10 +404,98 @@ public class Tetris extends Board implements SignalReceiver {
                     points = sign;
                     updatePoints();
                 } else {
-                    pl.sendMessage(ChatColor.RED + "No such command!");
+                    int dir = getDirection(input[2], sign.getBlock());
+                    if (dir != -1) {
+                        move(dir);
+                    } else {
+                        pl.sendMessage(ChatColor.RED + "No such command!");
+                    }
                 }
             }
         }
+    }
+    
+    public int getDirection(String dir, Block bl) {
+        if (dir.equalsIgnoreCase("up")) {
+            return 1;
+        } else if (dir.equalsIgnoreCase("down")) {
+            return 0;
+        }
+        int sx, sz, bx, bz;
+        sx = startBlock.getX();
+        sz = startBlock.getZ();
+        bx = bl.getX();
+        bz = bl.getZ();
+        if (!outOfBounds(bl)) {
+            return -1;
+        }
+        boolean flip;
+        if (bx >= sx && bx < sx+x) {
+            flip = bz >= sz;
+            if (dir.equalsIgnoreCase("out")) {
+                return (flip ? 4 : 5);
+            } else if (dir.equalsIgnoreCase("in")) {
+                return (flip ? 5 : 4);               
+            } else if (dir.equalsIgnoreCase("right")) {
+                return (flip ? 3 : 2);               
+            } else if (dir.equalsIgnoreCase("left")) {
+                return (flip ? 2 : 3);               
+            }
+        }
+        if (bz >= sz && bz < sz+z) {
+            flip = bx >= sx;
+            if (dir.equalsIgnoreCase("out")) {
+                return (flip ? 2 : 3);
+            } else if (dir.equalsIgnoreCase("in")) {
+                return (flip ? 3 : 2);               
+            } else if (dir.equalsIgnoreCase("right")) {
+                return (flip ? 4 : 5);               
+            } else if (dir.equalsIgnoreCase("left")) {
+                return (flip ? 5 : 4);               
+            }
+        }
+        return -1;
+    }
+    public int getRotDirection(String dir, Block bl) {
+        if (dir.equalsIgnoreCase("left")) {
+            return 4;
+        } else if (dir.equalsIgnoreCase("right")) {
+            return 5;
+        }
+        int sx, sz, bx, bz;
+        sx = startBlock.getX();
+        sz = startBlock.getZ();
+        bx = bl.getX();
+        bz = bl.getZ();
+        if (!outOfBounds(bl)) {
+            return -1;
+        }
+        boolean flip;
+        if (bx >= sx && bx < sx+x) {
+            flip = bz >= sz;
+            if (dir.equalsIgnoreCase("out")) {
+                return (flip ? 2 : 3);               
+            } else if (dir.equalsIgnoreCase("in")) {
+                return (flip ? 3 : 2);               
+            } else if (dir.equalsIgnoreCase("lside")) {
+                return (flip ? 1 : 0);         
+            } else if (dir.equalsIgnoreCase("rside")) {
+                return (flip ? 0 : 1);
+            }
+        }
+        if (bz >= sz && bz < sz+z) {
+            flip = bx >= sx;
+            if (dir.equalsIgnoreCase("out")) {
+                return (flip ? 0 : 1);
+            } else if (dir.equalsIgnoreCase("in")) { 
+                return (flip ? 1 : 0);
+            } else if (dir.equalsIgnoreCase("lside")) {
+                return (flip ? 3 : 3);
+            } else if (dir.equalsIgnoreCase("rside")) {
+                return (flip ? 2 : 3);
+            }
+        }
+        return -1;
     }
 
     public void updatePoints() {
@@ -464,6 +553,7 @@ public class Tetris extends Board implements SignalReceiver {
             this.z += modZ(dir);
         }
     }
+    
     class GameRunner extends Thread {
         public void run() {
             next(tdir);
