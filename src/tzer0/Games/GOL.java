@@ -426,6 +426,44 @@ public class GOL extends Board implements Interactable, SignalReceiver {
 
         return out;
     }
+    
+    public boolean checkFlow(LinkedList<String> code, Player pl) {
+        LinkedList<Integer> state = new LinkedList<Integer>();
+        for (String tmp : code) {
+            String split[] = tmp.split(":");
+            if (split[0].equalsIgnoreCase("if")) {
+                state.addFirst(0);
+            } else if (split[0].equalsIgnoreCase("else")) {
+                if (state.getFirst().equals(0)) {
+                    state.addFirst(2);
+                } else {
+                    return false;
+                }
+            } else if (split[0].equalsIgnoreCase("end")) {
+                Integer i = state.getFirst();
+                if (i.equals(2)) {
+                    state.removeFirst();
+                }
+                if (i.equals(0)) {
+                    state.removeFirst();
+                    continue;
+                } else {
+                    pl.sendMessage(ChatColor.RED + "Flow error - interesecting if-test/loop");
+                    return false;
+                }
+            } else if (split[0].equalsIgnoreCase("wh") || split[0].equalsIgnoreCase("while")) {
+                state.addFirst(1);
+            } else if (split[0].equalsIgnoreCase("wend")) {
+                if (state.getFirst().equals(1)) {
+                    state.removeFirst();
+                } else {
+                    pl.sendMessage(ChatColor.RED + "Flow error - interesecting if-test/loop");
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
     public boolean checkIfConnected(int type, int sign, Player pl) {
         Block pos1 = null, pos2 = null;
@@ -911,7 +949,10 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         public void run() {
             try {
                 LinkedList<String> code = getCode(new LinkedList<Sign>(), sign, 2, pl);
-                executeCode(code, pl, this);
+                if (checkFlow(code, pl)) {
+                    executeCode(code, pl, this);
+                }
+                
             } catch (GOLIllegalIncludeException e) {
                 Block bl = e.sg.getBlock();
                 pl.sendMessage(ChatColor.RED + "You have a circular dependency.");
