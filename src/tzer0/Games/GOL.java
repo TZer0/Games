@@ -20,7 +20,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
     LinkedList<CellType> races;
     Block winpos;
     CodeExecutor ex;
-    
+
     public GOL(String name, World world, Location pos1, Location pos2,
             boolean imported, Games plugin, Configuration conf) {
         super(name, world, pos1, pos2, imported, plugin, conf);
@@ -112,6 +112,14 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         ex.start();
     }    
 
+    public String[] convertToShorter(String splitCmd[], int from, int to) {
+        String out[] = new String[to-from+1];
+        for (int i = 0; i < to-from+1; i++) {
+            out[i] = splitCmd[i+from];
+        }
+        return out;
+    }
+    
     public void executeCode(LinkedList<String> code, Player pl, CodeExecutor exec) {
         int limit = 10000;
         Storage storage = new Storage();
@@ -133,7 +141,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                     if (!checkParams(splitCmd, 2, 4, pl)) {
                         return;
                     }
-                    int res = performTest(storage, splitCmd, pl);
+                    int res = performTest(storage, convertToShorter(splitCmd, 1, l), pl);
                     if (res == 1) {
                         storage.cifLevel++;
                     } else if (res == -1) {
@@ -159,7 +167,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                     if (!checkParams(splitCmd, 2, 4, pl)) {
                         return;
                     }
-                    int res = performTest(storage, splitCmd, pl);
+                    int res = performTest(storage, convertToShorter(splitCmd, 1, l), pl);
                     pl.sendMessage(ChatColor.YELLOW + "" + res);
                     if (res == -1) {
                         return;
@@ -264,7 +272,14 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                 } else if (splitCmd[0].equalsIgnoreCase("t")) {
                     pl.sendMessage(ChatColor.RED + "Reached t, terinating.");
                 } else {
-                    pl.sendMessage(ChatColor.RED + "No such command - " + cmd);
+                    int i = performTest(storage, splitCmd, pl);
+                    if (i == -1) {
+                        return;
+                    } else if (i == 0) {
+                        break;
+                    } else if (i == -2) {
+                        pl.sendMessage(ChatColor.RED + "No such command: " + splitCmd[0]);
+                    }
                 }
             }
         }
@@ -272,69 +287,68 @@ public class GOL extends Board implements Interactable, SignalReceiver {
     }
 
     public int performTest(Storage storage, String[] splitCmd, Player pl) {
-        if (splitCmd[1].equalsIgnoreCase("cn")) {
+        if (splitCmd[0].equalsIgnoreCase("cn")) {
             if (!checkParams(splitCmd, 4, pl)) {
                 return -1;
             }
-            String out = splitCmd[2];
-            if (plugin.toInt(splitCmd[2]) == -1) {
+            String out = splitCmd[1];
+            if (plugin.toInt(splitCmd[1]) == -1) {
                 out = "*";
             }
-            if (!checkIfConnected(plugin.toInt(splitCmd[2]), plugin.toInt(splitCmd[3]), pl)) {
+            if (!checkIfConnected(plugin.toInt(splitCmd[1]), plugin.toInt(splitCmd[2]), pl)) {
                 pl.sendMessage(ChatColor.RED + 
-                        String.format("Failure! Connector %d was not connected using %s", plugin.toInt(splitCmd[3]), out));
+                        String.format("Failure! Connector %d was not connected using %s", plugin.toInt(splitCmd[2]), out));
                 return 0;
             } else {
                 pl.sendMessage(ChatColor.GREEN + 
-                        String.format("Success! You connected %d using %s", plugin.toInt(splitCmd[3]), out));
+                        String.format("Success! You connected %d using %s", plugin.toInt(splitCmd[2]), out));
                 storage.cifLevel++;
                 return 1;
             }
         } else if (splitCmd[1].equalsIgnoreCase("c")) {
-            if (!checkParams(splitCmd, 4, pl)) {
+            if (!checkParams(splitCmd, 3, pl)) {
                 return -1;
             }
             int count = 0;
             int actual = 0;
             try {
-                count = Integer.parseInt(splitCmd[3]);
-                actual = countCell(Integer.parseInt(splitCmd[2]));
+                count = Integer.parseInt(splitCmd[2]);
+                actual = countCell(Integer.parseInt(splitCmd[1]));
             } catch (NumberFormatException e) {
-                pl.sendMessage(ChatColor.RED + String.format("%s or is not an integer", splitCmd[2], splitCmd[3]));
+                pl.sendMessage(ChatColor.RED + String.format("%s or is not an integer", splitCmd[1], splitCmd[2]));
                 return -1;
             }
             if (actual != count) {
                 pl.sendMessage(ChatColor.RED + String.format("You failed, target: %d, got %d", count, actual));
                 return 0;
             } else {
-                pl.sendMessage(ChatColor.GREEN + String.format("You passed a test, you had %d of %s!", count, splitCmd[2]));
-                storage.cifLevel++;
+                pl.sendMessage(ChatColor.GREEN + String.format("You passed a test, you had %d of %s!", count, splitCmd[1]));
                 return 1;
             }
         } else {
             try {
-                int v1 = getVarOrValue(storage, splitCmd[2], pl);
-                int v2 = getVarOrValue(storage, splitCmd[3], pl);
-                if (splitCmd[1].equalsIgnoreCase("==")) {
+                int v1 = getVarOrValue(storage, splitCmd[1], pl);
+                int v2 = getVarOrValue(storage, splitCmd[2], pl);
+                if (splitCmd[0].equalsIgnoreCase("==")) {
                     return (v1 == v2 ? 1 : 0);
-                } else if (splitCmd[1].equalsIgnoreCase("<")) {
+                } else if (splitCmd[0].equalsIgnoreCase("<")) {
                     return (v1 < v2 ? 1 : 0);
-                } else if (splitCmd[1].equalsIgnoreCase(">")) {
+                } else if (splitCmd[0].equalsIgnoreCase(">")) {
                     return (v1 > v2 ? 1 : 0);
-                } else if (splitCmd[1].equalsIgnoreCase("<=")) {
+                } else if (splitCmd[0].equalsIgnoreCase("<=")) {
                     return (v1 <= v2 ? 1 : 0);
-                } else if (splitCmd[1].equalsIgnoreCase(">=")) {
+                } else if (splitCmd[0].equalsIgnoreCase(">=")) {
                     return (v1 >= v2 ? 1 : 0);
-                } else if (splitCmd[1].equalsIgnoreCase("!=")) {
+                } else if (splitCmd[0].equalsIgnoreCase("!=")) {
                     return (v1 != v2 ? 1 : 0);
                 } else {
-                    pl.sendMessage(ChatColor.RED + "No such test");
-                    return -1;
+                    pl.sendMessage(ChatColor.RED + "No such test: " + splitCmd[0]);
+                    return -2;
                 }
             } catch (GOLIllegalStateError e) {
                 pl.sendMessage(ChatColor.RED + 
                         String.format("No such variable or invalid integer: %s and/or %s",
-                                splitCmd[2], splitCmd[3]));
+                                splitCmd[1], splitCmd[2]));
                 return -1;
             }
         }
@@ -378,6 +392,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         }
         return ret;
     }
+
     public boolean checkParams(String[] splitCmd, int fnum, int tnum, Player pl) {
         boolean ret = splitCmd.length <= tnum && splitCmd.length >= fnum;
         if (!ret) {
@@ -386,6 +401,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         }
         return ret;
     }
+
     public LinkedList<String> getCode(LinkedList<Sign> included, Sign current, int from, Player pl) throws GOLIllegalIncludeException, GOLIllegalStateError {
         if (included.contains(current)) {
             throw new GOLIllegalIncludeException(current);
@@ -426,7 +442,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
 
         return out;
     }
-    
+
     public boolean checkFlow(LinkedList<String> code, Player pl) {
         LinkedList<Integer> state = new LinkedList<Integer>();
         for (String tmp : code) {
@@ -462,7 +478,12 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                 }
             }
         }
-        return true;
+        if (state.size() == 0) {
+            return true;
+        } else {
+            pl.sendMessage(ChatColor.RED + "Missing one or more wends or ends.");
+            return false;
+        }           
     }
 
     public boolean checkIfConnected(int type, int sign, Player pl) {
@@ -952,7 +973,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                 if (checkFlow(code, pl)) {
                     executeCode(code, pl, this);
                 }
-                
+
             } catch (GOLIllegalIncludeException e) {
                 Block bl = e.sg.getBlock();
                 pl.sendMessage(ChatColor.RED + "You have a circular dependency.");
@@ -971,7 +992,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
             this.line = line;
         }
     }
-    
+
     class Storage {
         HashMap<String, Integer> var;
         int ifLevel,  cifLevel;
@@ -980,4 +1001,5 @@ public class GOL extends Board implements Interactable, SignalReceiver {
             var = new HashMap<String, Integer>();
         }
     }
+
 }
