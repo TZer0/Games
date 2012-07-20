@@ -114,7 +114,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
 
     public String[] convertToShorter(String splitCmd[], int from, int to) {
         String out[] = new String[to-from+1];
-        for (int i = 0; i < to-from+1; i++) {
+        for (int i = 0; i < to-from; i++) {
             out[i] = splitCmd[i+from];
         }
         return out;
@@ -133,7 +133,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                 break;
             }
             String cmd = code.get(line);
-            pl.sendMessage(cmd);
+            System.out.print(cmd);
             if (!cmd.equalsIgnoreCase("")) {
                 String[] splitCmd = cmd.split(":");
                 int l = splitCmd.length;
@@ -168,7 +168,6 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                         return;
                     }
                     int res = performTest(storage, convertToShorter(splitCmd, 1, l), pl);
-                    pl.sendMessage(ChatColor.YELLOW + "" + res);
                     if (res == -1) {
                         return;
                     } else if (res == 1) {
@@ -193,7 +192,6 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                                 break;
                             }
                         }
-                        pl.sendMessage(ChatColor.BLUE + "" + found);
                         if (!found) {
                             wh.addFirst(new FlowNode(false, line));
                         }
@@ -288,7 +286,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
 
     public int performTest(Storage storage, String[] splitCmd, Player pl) {
         if (splitCmd[0].equalsIgnoreCase("cn")) {
-            if (!checkParams(splitCmd, 4, pl)) {
+            if (!checkParams(splitCmd, 3, pl)) {
                 return -1;
             }
             String out = splitCmd[1];
@@ -305,7 +303,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                 storage.cifLevel++;
                 return 1;
             }
-        } else if (splitCmd[1].equalsIgnoreCase("c")) {
+        } else if (splitCmd[0].equalsIgnoreCase("c")) {
             if (!checkParams(splitCmd, 3, pl)) {
                 return -1;
             }
@@ -411,14 +409,15 @@ public class GOL extends Board implements Interactable, SignalReceiver {
         LinkedList<String> out = new LinkedList<String>();
         for (int i = from; i < 4; i++) {
             for (String cmd : lines[i].split(",")) {
-                if (cmd.contains("e:") || cmd.contains("exec:")) {
-                    String splitCmd[] = cmd.split(":");
+                String splitCmd[] = cmd.split(":");
+                if (splitCmd[0].equalsIgnoreCase("e") || splitCmd[0].equalsIgnoreCase("exec")) {
                     if (splitCmd.length != 4) {
                         pl.sendMessage(ChatColor.RED + "Error in count - invalid arg-count (needs 4)");
                         throw new GOLIllegalStateError();
                     }
                     Block bl = current.getBlock().getRelative(plugin.toInt(splitCmd[1]),
                             plugin.toInt(splitCmd[2]), plugin.toInt(splitCmd[3]));
+                    pl.sendMessage(ChatColor.GREEN + "" + bl.getType());
                     if (bl.getType() == Material.SIGN_POST || bl.getType() == Material.WALL_SIGN) {
                         Sign newSign = (Sign) bl.getState();
                         if (newSign.getLine(0).equalsIgnoreCase(ChatColor.DARK_GREEN + "[exp]")) {
@@ -446,6 +445,10 @@ public class GOL extends Board implements Interactable, SignalReceiver {
     public boolean checkFlow(LinkedList<String> code, Player pl) {
         LinkedList<Integer> state = new LinkedList<Integer>();
         for (String tmp : code) {
+            System.out.println("cstate");
+            for (Integer i : state) {
+                System.out.println(i);
+            }
             String split[] = tmp.split(":");
             if (split[0].equalsIgnoreCase("if")) {
                 state.addFirst(0);
@@ -459,6 +462,7 @@ public class GOL extends Board implements Interactable, SignalReceiver {
                 Integer i = state.getFirst();
                 if (i.equals(2)) {
                     state.removeFirst();
+                    i = state.getFirst();
                 }
                 if (i.equals(0)) {
                     state.removeFirst();

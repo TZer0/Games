@@ -383,6 +383,13 @@ public class Tetris extends Board implements SignalReceiver {
         String input[] = sign.getLines();
         String in[] = input[2].split(":");
         if (in.length != 0) {
+            boolean isInt = true;
+            int val = 0;
+            try {
+                val = Integer.parseInt(in[0]);
+            } catch (NumberFormatException e) {
+                isInt = false;
+            }
             if (input[2].equalsIgnoreCase("start")) {
                 startGame(pl);
             } else if (input[2].equalsIgnoreCase("stop")) {
@@ -398,8 +405,8 @@ public class Tetris extends Board implements SignalReceiver {
                             pl.sendMessage(ChatColor.RED + "Invalid direction.");
                         }
                     }
-                } else if (plugin.checkInt(in[0])) {
-                    move(Integer.parseInt(in[0]));
+                } else if (isInt) {
+                    move(val);
                 } else if (input[2].equalsIgnoreCase("points")) {
                     points = sign;
                     updatePoints();
